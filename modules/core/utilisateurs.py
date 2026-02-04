@@ -40,7 +40,7 @@ def sauvegarder_utilisateurs(utilisateurs):
         json.dump(utilisateurs, f, indent=4, ensure_ascii=False)
 
 
-def creer_utilisateur(nom_utilisateur, niveau=1, email=''):
+def creer_utilisateur(nom_utilisateur, niveau=1, email='', password_hash='', role='user'):
     """
     Crée un nouveau profil utilisateur
     
@@ -48,6 +48,8 @@ def creer_utilisateur(nom_utilisateur, niveau=1, email=''):
         nom_utilisateur: Nom du nouvel utilisateur
         niveau: Niveau initial de l'utilisateur (défaut: 1)
         email: Email de l'utilisateur (optionnel)
+        password_hash: Hash bcrypt du mot de passe
+        role: Rôle de l'utilisateur (user, teacher, admin)
     
     Returns:
         dict: Données de l'utilisateur créé ou False si échec
@@ -63,7 +65,9 @@ def creer_utilisateur(nom_utilisateur, niveau=1, email=''):
     utilisateurs['utilisateurs'][nom_utilisateur] = {
         'nom': nom_utilisateur,
         'email': email,
+        'password_hash': password_hash,
         'niveau': niveau,
+        'role': role,
         'date_creation': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'fichier_progression': f'{DOSSIER_PROGRESSIONS}/{nom_utilisateur}.json'
     }

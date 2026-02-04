@@ -354,7 +354,7 @@ def verifier_code_dangereux(code):
 
 def executer_code_securise(code, timeout_secondes=5):
     """
-    Exécute du code Python de manière sécurisée avec restrictions
+    Exécute du code Python de manière sécurisée avec restrictions renforcées
     
     Args:
         code (str): Le code Python à exécuter
@@ -368,6 +368,9 @@ def executer_code_securise(code, timeout_secondes=5):
             'timeout': bool
         }
     """
+    import threading
+    import time
+    
     # Vérifier les imports dangereux
     safe, message = verifier_code_dangereux(code)
     if not safe:
@@ -375,8 +378,35 @@ def executer_code_securise(code, timeout_secondes=5):
             'success': False,
             'output': '',
             'error': message,
+            'timeout': False,
+            'dangerous_attempt': True
+        }
+    
+    # Limiter la taille du code (protection DoS)
+    if len(code) > 50000:
+        return {
+            'success': False,
+            'output': '',
+            'error': 'Code trop long (maximum 50KB)',
             'timeout': False
         }
+    
+    # Compter les boucles (protection boucles infinies)
+    loop_count = code.count('while ') + code.count('for ')
+    if loop_count > 20:
+        return {
+            'success': False,
+            'output': '',
+            'error': 'Trop de boucles detectees (maximum 20)',
+            'timeout': False
+        }
+    
+    # Vérifier la profondeur de récursion
+    if 'def ' in code:
+        # Limiter la profondeur de récursion
+        import sys
+        old_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(100)  # Maximum 100 niveaux
     
     # Préparer la capture des outputs
     stdout_capture = StringIO()
@@ -421,42 +451,65 @@ def executer_code_securise(code, timeout_secondes=5):
         }
     }
     
-    try:
-        # Note : signal.alarm ne fonctionne pas sur Windows
-        # Sur Linux/Mac, décommenter ces lignes pour activer le timeout :
-        # signal.signal(signal.SIGALRM, timeout_handler)
-        # signal.alarm(timeout_secondes)
-        
-        # Exécuter le code avec redirection des outputs
-        with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-            exec(code, environnement)
-        
-        # Annuler le timeout
-        # signal.alarm(0)
-        
-        return {
-            'success': True,
-            'output': stdout_capture.getvalue(),
-            'error': stderr_capture.getvalue(),
-            'timeout': False,
-            'environnement': environnement  # Permet de récupérer les variables définies
-        }
-        
-    except TimeoutException:
+    # Variable pour stocker le résultat de l'exécution
+    result = {'success': False, 'output': '', 'error': 'Timeout', 'timeout': True}
+    
+    def execute_code():
+        """Fonction qui exécute le code dans un thread"""
+        nonlocal result
+        try:
+            with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+                exec(code, environnement)
+            
+            result = {
+                'success': True,
+                'output': stdout_capture.getvalue(),
+                'error': stderr_capture.getvalue(),
+                'timeout': False
+            }
+        except RecursionError:
+            result = {
+                'success': False,
+                'output': stdout_capture.getvalue(),
+                'error': 'Recursion trop profonde (maximum 100 niveaux)',
+                'timeout': False
+            }
+        except MemoryError:
+            result = {
+                'success': False,
+                'output': stdout_capture.getvalue(),
+                'error': 'Memoire insuffisante',
+                'timeout': False
+            }
+        except Exception as e:
+            result = {
+                'success': False,
+                'output': stdout_capture.getvalue(),
+                'error': f'Erreur d\'execution : {type(e).__name__}: {str(e)}',
+                'timeout': False
+            }
+    
+    # Exécuter dans un thread avec timeout
+    thread = threading.Thread(target=execute_code)
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout_secondes)
+    
+    # Restaurer la limite de récursion
+    if 'def ' in code:
+        import sys
+        sys.setrecursionlimit(old_limit)
+    
+    # Vérifier si le thread est toujours actif (timeout)
+    if thread.is_alive():
         return {
             'success': False,
             'output': stdout_capture.getvalue(),
-            'error': 'Timeout : Votre code prend trop de temps (max 5s)',
+            'error': f'Timeout : Votre code prend trop de temps (max {timeout_secondes}s)',
             'timeout': True
         }
-        
-    except Exception as e:
-        return {
-            'success': False,
-            'output': stdout_capture.getvalue(),
-            'error': f'Erreur d\'execution : {type(e).__name__}: {str(e)}',
-            'timeout': False
-        }
+    
+    return result
 
 def verifier_avec_tests(code, tests):
     """
