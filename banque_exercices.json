@@ -1,0 +1,12 @@
+{
+  "python:Variables": {
+    "1": [
+      {
+        "type": "code",
+        "enonce": "Déclarez trois variables avec les noms `age`, `nom` et `est_student`. Affectez-leur respectivement l'âge d'une personne (un entier), son nom (une chaîne de caractères) et un booléen indiquant s'il est étudiant ou non. Puis, imprimez les valeurs de ces variables."
+      }
+    ],
+    "2": [],
+    "3": []
+  }
+}

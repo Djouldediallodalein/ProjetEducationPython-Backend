@@ -1,0 +1,14 @@
+{
+    "java_2026-02-04": {
+        "type": "marathon",
+        "nom": "Marathon",
+        "description": "Compléter 10 exercices dans la journée",
+        "objectif": 10,
+        "xp_bonus": 80,
+        "progression": 0,
+        "complete": false,
+        "date": "2026-02-04",
+        "domaine": "java",
+        "themes_completes": null
+    }
+}

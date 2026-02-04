@@ -1,0 +1,218 @@
+{
+    "domaine_actif": "java",
+    "domaines": {
+        "python": {
+            "niveau": 3,
+            "exercices_reussis": 9,
+            "exercices_totaux": 14,
+            "themes": {
+                "Variables et types de données": {
+                    "reussis": 5,
+                    "totaux": 9
+                },
+                "Conditions (if/elif/else)": {
+                    "reussis": 0,
+                    "totaux": 1
+                },
+                "Test": {
+                    "reussis": 2,
+                    "totaux": 2
+                },
+                "Test Python": {
+                    "reussis": 2,
+                    "totaux": 2
+                }
+            },
+            "exercices_completes": [
+                "Variables et types de données|1|Créez une variable nommée 'age' et affectez-lui vo",
+                "Variables|1|{'type': 'qcm', 'question': 'Test'}",
+                "Variables et types de données|1|{'type': 'qcm', 'question': 'Quel est le type de d",
+                "Variables et types de données|1|{'type': 'code', 'enonce': \"Créez une variable nom",
+                "Variables et types de données|1|{'type': 'qcm', 'question': 'Quelle est la valeur ",
+                "Test|1|exercice_test"
+            ],
+            "badges": [
+                "premier_pas",
+                "debutant"
+            ],
+            "historique": [
+                {
+                    "date": "2026-02-04 09:20:01",
+                    "theme": "Conditions (if/elif/else)",
+                    "niveau": 2,
+                    "exercice": "Écrivez un programme qui affiche 'Positif', 'Négatif' ou 'Zéro' selon un nombre.",
+                    "tentatives": 3,
+                    "reussi": false
+                }
+            ],
+            "srs": {
+                "exercices": {
+                    "Variables|2|Test Python": {
+                        "niveau_srs": 2,
+                        "theme": "Variables",
+                        "niveau_exercice": 2,
+                        "prochaine_revision": "2026-02-07",
+                        "historique": [
+                            {
+                                "date": "2026-02-04 10:51:43",
+                                "reussi": true,
+                                "tentatives": 1,
+                                "niveau_srs": 1
+                            },
+                            {
+                                "date": "2026-02-04 10:52:03",
+                                "reussi": true,
+                                "tentatives": 1,
+                                "niveau_srs": 2
+                            }
+                        ]
+                    },
+                    "Variables|2|Test Q": {
+                        "niveau_srs": 1,
+                        "theme": "Variables",
+                        "niveau_exercice": 2,
+                        "prochaine_revision": "2026-02-05",
+                        "historique": [
+                            {
+                                "date": "2026-02-04 10:54:18",
+                                "reussi": true,
+                                "tentatives": 1,
+                                "niveau_srs": 1
+                            }
+                        ]
+                    },
+                    "Variables|1|test1": {
+                        "niveau_srs": 1,
+                        "theme": "Variables",
+                        "niveau_exercice": 1,
+                        "prochaine_revision": "2026-02-05",
+                        "historique": [
+                            {
+                                "date": "2026-02-04 10:54:18",
+                                "reussi": true,
+                                "tentatives": 1,
+                                "niveau_srs": 1
+                            }
+                        ]
+                    }
+                }
+            },
+            "xp_total": 255
+        },
+        "java": {
+            "niveau": 2,
+            "exercices_reussis": 2,
+            "exercices_totaux": 2,
+            "themes": {
+                "Test Java": {
+                    "reussis": 2,
+                    "totaux": 2
+                }
+            },
+            "exercices_completes": [],
+            "badges": [],
+            "historique": [],
+            "srs": {
+                "exercices": {
+                    "Classes|2|Test Java": {
+                        "niveau_srs": 2,
+                        "theme": "Classes",
+                        "niveau_exercice": 2,
+                        "prochaine_revision": "2026-02-07",
+                        "historique": [
+                            {
+                                "date": "2026-02-04 10:51:43",
+                                "reussi": true,
+                                "tentatives": 1,
+                                "niveau_srs": 1
+                            },
+                            {
+                                "date": "2026-02-04 10:52:03",
+                                "reussi": true,
+                                "tentatives": 1,
+                                "niveau_srs": 2
+                            }
+                        ]
+                    },
+                    "Classes|1|test2": {
+                        "niveau_srs": 1,
+                        "theme": "Classes",
+                        "niveau_exercice": 1,
+                        "prochaine_revision": "2026-02-05",
+                        "historique": [
+                            {
+                                "date": "2026-02-04 10:54:18",
+                                "reussi": true,
+                                "tentatives": 1,
+                                "niveau_srs": 1
+                            }
+                        ]
+                    }
+                }
+            },
+            "xp_total": 205
+        },
+        "javascript": {
+            "niveau": 1,
+            "exercices_reussis": 0,
+            "exercices_totaux": 0,
+            "themes": {},
+            "exercices_completes": [],
+            "badges": [],
+            "historique": []
+        },
+        "c": {
+            "niveau": 1,
+            "exercices_reussis": 0,
+            "exercices_totaux": 0,
+            "themes": {},
+            "exercices_completes": [],
+            "badges": [],
+            "historique": []
+        },
+        "sql": {
+            "niveau": 1,
+            "exercices_reussis": 0,
+            "exercices_totaux": 0,
+            "themes": {},
+            "exercices_completes": [],
+            "badges": [],
+            "historique": []
+        },
+        "html_css": {
+            "niveau": 1,
+            "exercices_reussis": 0,
+            "exercices_totaux": 0,
+            "themes": {},
+            "exercices_completes": [],
+            "badges": [],
+            "historique": []
+        },
+        "mathematiques": {
+            "niveau": 1,
+            "exercices_reussis": 0,
+            "exercices_totaux": 0,
+            "themes": {},
+            "exercices_completes": [],
+            "badges": [],
+            "historique": []
+        },
+        "anglais": {
+            "niveau": 1,
+            "exercices_reussis": 0,
+            "exercices_totaux": 0,
+            "themes": {},
+            "exercices_completes": [],
+            "badges": [],
+            "historique": []
+        }
+    },
+    "streak_actuel": 1,
+    "streak_record": 1,
+    "derniere_connexion": "2026-02-04",
+    "date_creation": "2026-02-03 19:51:39",
+    "xp_total": 0,
+    "srs": {
+        "exercices": {}
+    }
+}
