@@ -1,8 +1,0 @@
-# Tests
-tests/__pycache__/
-*.pyc
-
-# Pytest
-.pytest_cache/
-htmlcov/
-.coverage
