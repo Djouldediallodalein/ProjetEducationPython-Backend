@@ -52,6 +52,122 @@ def register_routes(app):
             'endpoints': 10
         }), 200
 
+    # ==================== AUTHENTIFICATION ====================
+
+    @app.route('/api/auth/register', methods=['POST'])
+    def api_register():
+        """
+        Inscription d'un nouvel utilisateur
+        
+        Body JSON:
+        {
+            "username": "Djoulde",
+            "email": "d.djoulde.d@gmail.com",
+            "password": "motdepasse123"
+        }
+        """
+        try:
+            data = request.json or {}
+            username = data.get('username', '')
+            email = data.get('email', '')
+            password = data.get('password', '')
+            
+            if not username or not email or not password:
+                return jsonify({
+                    'success': False,
+                    'error': 'Nom d\'utilisateur, email et mot de passe requis'
+                }), 400
+            
+            # Vérifier si l'utilisateur existe déjà
+            utilisateurs = lister_utilisateurs()
+            for user in utilisateurs:
+                if user.get('nom') == username or user.get('email') == email:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Cet utilisateur existe déjà'
+                    }), 400
+            
+            # Créer l'utilisateur
+            user = creer_utilisateur(username, niveau=1, email=email)
+            
+            # Sélectionner automatiquement l'utilisateur
+            selectionner_utilisateur(username)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Utilisateur créé avec succès',
+                'user': {
+                    'id': user.get('nom'),
+                    'username': user.get('nom'),
+                    'email': user.get('email', email),
+                    'niveau': user.get('niveau', 1)
+                }
+            }), 201
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Erreur lors de la création du compte'
+            }), 500
+
+    @app.route('/api/auth/login', methods=['POST'])
+    def api_login():
+        """
+        Connexion d'un utilisateur existant
+        
+        Body JSON:
+        {
+            "username": "Djoulde",
+            "password": "motdepasse123"
+        }
+        """
+        try:
+            data = request.json or {}
+            username = data.get('username', '')
+            password = data.get('password', '')
+            
+            if not username:
+                return jsonify({
+                    'success': False,
+                    'error': 'Nom d\'utilisateur requis'
+                }), 400
+            
+            # Vérifier si l'utilisateur existe
+            utilisateurs = lister_utilisateurs()
+            user_found = None
+            for user in utilisateurs:
+                if user.get('nom') == username:
+                    user_found = user
+                    break
+            
+            if not user_found:
+                return jsonify({
+                    'success': False,
+                    'error': 'Utilisateur non trouvé'
+                }), 404
+            
+            # Sélectionner l'utilisateur
+            selectionner_utilisateur(username)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Connexion réussie',
+                'user': {
+                    'id': user_found.get('nom'),
+                    'username': user_found.get('nom'),
+                    'email': user_found.get('email', ''),
+                    'niveau': user_found.get('niveau', 1)
+                }
+            }), 200
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Erreur lors de la connexion'
+            }), 500
+
     # ==================== EXERCICES ====================
 
     @app.route('/api/exercices/generer', methods=['POST'])

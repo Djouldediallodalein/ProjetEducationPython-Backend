@@ -40,15 +40,17 @@ def sauvegarder_utilisateurs(utilisateurs):
         json.dump(utilisateurs, f, indent=4, ensure_ascii=False)
 
 
-def creer_utilisateur(nom_utilisateur):
+def creer_utilisateur(nom_utilisateur, niveau=1, email=''):
     """
     Crée un nouveau profil utilisateur
     
     Args:
         nom_utilisateur: Nom du nouvel utilisateur
+        niveau: Niveau initial de l'utilisateur (défaut: 1)
+        email: Email de l'utilisateur (optionnel)
     
     Returns:
-        bool: True si création réussie, False sinon
+        dict: Données de l'utilisateur créé ou False si échec
     """
     utilisateurs = charger_utilisateurs()
     
@@ -60,6 +62,8 @@ def creer_utilisateur(nom_utilisateur):
     # Créer le profil
     utilisateurs['utilisateurs'][nom_utilisateur] = {
         'nom': nom_utilisateur,
+        'email': email,
+        'niveau': niveau,
         'date_creation': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'fichier_progression': f'{DOSSIER_PROGRESSIONS}/{nom_utilisateur}.json'
     }
@@ -71,7 +75,7 @@ def creer_utilisateur(nom_utilisateur):
     
     sauvegarder_utilisateurs(utilisateurs)
     print(f"\nUtilisateur '{nom_utilisateur}' cree avec succes !")
-    return True
+    return utilisateurs['utilisateurs'][nom_utilisateur]
 
 
 def supprimer_utilisateur(nom_utilisateur):
