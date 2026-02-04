@@ -57,6 +57,15 @@ def set_security_headers(response):
     
     return response
 
+# Bloquer l'accès direct aux fichiers JSON
+@app.before_request
+def block_json_access():
+    """Bloquer l'accès direct aux fichiers sensibles"""
+    from flask import abort
+    blocked_extensions = ['.json', '.log', '.env', '.py', '.pyc']
+    if any(request.path.endswith(ext) for ext in blocked_extensions):
+        abort(403)
+
 # Logger les requêtes
 @app.before_request
 def log_request():
