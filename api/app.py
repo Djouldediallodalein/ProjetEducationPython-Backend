@@ -12,7 +12,7 @@ app.config['JSON_AS_ASCII'] = False  # Support UTF-8 pour les caractères spéci
 app.config['JSON_SORT_KEYS'] = False  # Garder l'ordre des clés JSON
 
 # Enregistrer les routes
-from api.routes import register_routes
+from routes import register_routes
 register_routes(app)
 
 if __name__ == '__main__':
