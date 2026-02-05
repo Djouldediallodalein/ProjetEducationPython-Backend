@@ -561,12 +561,15 @@ def register_routes(app, limiter):
     @require_auth
     def verifier_reponse_endpoint():
         """
-        Vérifie la réponse à un exercice
+        Vérifie la réponse à un exercice avec cas de test
         Rate limit: 30 requêtes par heure
         Authentification requise
         
+        SÉCURITÉ: N'exécute PAS le code avec input() interactif
+        Utilise uniquement des cas de test prédéfinis
+        
         Body: {domaine, theme, code}
-        Returns: {success, data: {correct, message, output, attendu}}
+        Returns: {success, data: {correct, message, tests_results}}
         """
         try:
             if not request.is_json:
@@ -597,20 +600,49 @@ def register_routes(app, limiter):
                     'error': 'Domaine invalide'
                 }), 400
             
-            # Vérification du code
+            # Vérification du code avec CAS DE TEST FIXES (sécurisé)
             from modules.core.fonctions import executer_code_securise
             
             try:
-                # Exécuter le code de l'utilisateur
-                resultat_execution = executer_code_securise(code_utilisateur)
+                # Définir des cas de test pour ce thème
+                # Ces valeurs sont FIXES, pas d'input() interactif
+                cas_de_test = [
+                    {"inputs": ["30", "175"], "description": "Test 1: âge=30, taille=175"},
+                    {"inputs": ["25", "168.5"], "description": "Test 2: âge=25, taille=168.5"},
+                    {"inputs": ["50", "182.3"], "description": "Test 3: âge=50, taille=182.3"}
+                ]
+                
+                tests_reussis = 0
+                tests_results = []
+                
+                for test in cas_de_test:
+                    # Exécuter le code avec les inputs prédéfinis
+                    resultat = executer_code_securise(code_utilisateur, test_inputs=test["inputs"])
+                    
+                    if resultat.get('success'):
+                        tests_reussis += 1
+                        tests_results.append({
+                            'passed': True,
+                            'description': test["description"],
+                            'output': resultat.get('output', '')
+                        })
+                    else:
+                        tests_results.append({
+                            'passed': False,
+                            'description': test["description"],
+                            'error': resultat.get('error', 'Erreur inconnue')
+                        })
+                
+                tous_reussis = tests_reussis == len(cas_de_test)
                 
                 return jsonify({
                     'success': True,
                     'data': {
-                        'correct': resultat_execution.get('success', False),
-                        'message': resultat_execution.get('output', 'Code exécuté avec succès!') if resultat_execution.get('success') else resultat_execution.get('error', 'Erreur lors de l\'exécution'),
-                        'output': resultat_execution.get('output', ''),
-                        'attendu': ''
+                        'correct': tous_reussis,
+                        'message': f'✅ Tous les tests réussis ({tests_reussis}/{len(cas_de_test)}) !' if tous_reussis else f'⚠️ Tests réussis: {tests_reussis}/{len(cas_de_test)}',
+                        'tests_results': tests_results,
+                        'tests_passed': tests_reussis,
+                        'tests_total': len(cas_de_test)
                     }
                 }), 200
                 
@@ -619,9 +651,10 @@ def register_routes(app, limiter):
                     'success': True,
                     'data': {
                         'correct': False,
-                        'message': f'Erreur d\'exécution: {str(exec_error)}',
-                        'output': '',
-                        'attendu': ''
+                        'message': f'❌ Erreur d\'exécution: {str(exec_error)}',
+                        'tests_results': [],
+                        'tests_passed': 0,
+                        'tests_total': 0
                     }
                 }), 200
             

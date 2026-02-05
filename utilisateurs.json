@@ -1,4 +1,14 @@
 {
     "utilisateur_actif": null,
-    "utilisateurs": {}
+    "utilisateurs": {
+        "Djoude": {
+            "nom": "Djoude",
+            "email": "d.djoulde.d@gmail.com",
+            "password_hash": "$2b$12$i1CXrh1IbXfkkuCpAU04CujbF94.iHFhIvWrfiProoaFMdAnTjb/2",
+            "niveau": 1,
+            "role": "user",
+            "date_creation": "2026-02-05 17:25:45",
+            "fichier_progression": "C:\\Users\\mamad\\OneDrive\\Bureau\\PROJET\\ProjetEducationPython\\backend\\progressions/Djoude.json"
+        }
+    }
 }

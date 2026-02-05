@@ -1,0 +1,17 @@
+{
+    "1:Variables et types de données": {
+        "1": [],
+        "2": [],
+        "3": [],
+        "python": [
+            {
+                "type": "texte",
+                "enonce": "Créez un script Python qui demande à l'utilisateur de saisir son âge et sa taille. Ensuite, affichez ces informations dans une phrase formatée indiquant le type de données de chaque variable (par exemple : \"Vous avez 30 ans (type: int) et mesurez 175 cm (type: float).\")"
+            },
+            {
+                "type": "texte",
+                "enonce": "Énoncé: Écrivez un programme Python qui demande à l'utilisateur de saisir son nom et son âge. Ensuite, affichez un message personnalisé indiquant combien d'années le utilisateur aura dans 10 ans."
+            }
+        ]
+    }
+}
