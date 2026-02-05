@@ -565,8 +565,8 @@ def register_routes(app, limiter):
         Rate limit: 30 requêtes par heure
         Authentification requise
         
-        Body: {exercice_id, reponse, exercice_data}
-        Returns: {success, data: {correct, feedback, xp_gagne}}
+        Body: {domaine, theme, code}
+        Returns: {success, data: {correct, message, output, attendu}}
         """
         try:
             if not request.is_json:
@@ -576,19 +576,54 @@ def register_routes(app, limiter):
                 }), 400
             
             data = request.get_json()
-            username = request.username
+            username = getattr(request, 'username', 'anonymous')
             
             # Validation des clés requises
-            required_keys = ['exercice_id', 'reponse', 'exercice_data']
+            required_keys = ['domaine', 'theme', 'code']
             if not validate_json_keys(data, required_keys):
                 return jsonify({
                     'success': False,
-                    'error': 'Champs requis: exercice_id, reponse, exercice_data'
+                    'error': 'Champs requis: domaine, theme, code'
                 }), 400
             
-            exercice_id = sanitize_string(data.get('exercice_id', ''))
-            reponse = data.get('reponse', '')
-            exercice_data = data.get('exercice_data', {})
+            domaine = sanitize_string(data.get('domaine', ''))
+            theme = sanitize_string(data.get('theme', ''))
+            code_utilisateur = data.get('code', '')
+            
+            # Validation du domaine
+            if not validate_domain(domaine):
+                return jsonify({
+                    'success': False,
+                    'error': 'Domaine invalide'
+                }), 400
+            
+            # Vérification du code
+            from modules.core.fonctions import executer_code_securise
+            
+            try:
+                # Exécuter le code de l'utilisateur
+                resultat_execution = executer_code_securise(code_utilisateur)
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'correct': resultat_execution.get('success', False),
+                        'message': resultat_execution.get('output', 'Code exécuté avec succès!') if resultat_execution.get('success') else resultat_execution.get('error', 'Erreur lors de l\'exécution'),
+                        'output': resultat_execution.get('output', ''),
+                        'attendu': ''
+                    }
+                }), 200
+                
+            except Exception as exec_error:
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'correct': False,
+                        'message': f'Erreur d\'exécution: {str(exec_error)}',
+                        'output': '',
+                        'attendu': ''
+                    }
+                }), 200
             
             # Vérification de la réponse
             resultat = verifier_reponse(exercice_data, reponse)
