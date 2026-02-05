@@ -381,7 +381,7 @@ def verifier_code_dangereux(code):
     
     return True, ""
 
-def executer_code_securise(code, timeout_secondes=2):
+def executer_code_securise(code, timeout_secondes=2, test_inputs=None):
     """
     Exécute du code Python de manière sécurisée avec restrictions renforcées
     
@@ -395,10 +395,12 @@ def executer_code_securise(code, timeout_secondes=2):
     - Gestion améliorée des timeouts avec cleanup
     - Capture spécifique des erreurs de mémoire
     - Messages d'erreur plus clairs et sécurisés
+    - Support pour input() simulé avec valeurs de test
     
     Args:
         code (str): Le code Python à exécuter
         timeout_secondes (int): Temps maximum d'exécution (défaut 2s)
+        test_inputs (list): Liste de valeurs à retourner pour input() (défaut ["30", "175.5"])
     
     Returns:
         dict: {
@@ -460,10 +462,27 @@ def executer_code_securise(code, timeout_secondes=2):
     stdout_capture = StringIO()
     stderr_capture = StringIO()
     
+    # Créer une fonction input() simulée avec des valeurs de test
+    if test_inputs is None:
+        test_inputs = ["30", "175.5"]  # Valeurs de test par défaut
+    input_index = [0]  # Liste pour pouvoir modifier dans la closure
+    
+    def mock_input(prompt=""):
+        """Fonction input() simulée qui retourne des valeurs prédéfinies"""
+        if prompt:
+            print(prompt, end='')
+        if input_index[0] < len(test_inputs):
+            value = test_inputs[input_index[0]]
+            input_index[0] += 1
+            print(value)  # Afficher la valeur comme si l'utilisateur l'avait saisie
+            return value
+        return ""
+    
     # Créer un environnement restreint (whitelist de fonctions autorisées)
     environnement = {
         '__builtins__': {
             'print': print,
+            'input': mock_input,  # Ajouter input() simulé
             'len': len,
             'range': range,
             'str': str,
