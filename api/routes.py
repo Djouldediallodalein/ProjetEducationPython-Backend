@@ -657,27 +657,13 @@ def register_routes(app, limiter):
                         'tests_total': 0
                     }
                 }), 200
-            
-            # Vérification de la réponse
-            resultat = verifier_reponse(exercice_data, reponse)
-            
-            # Calcul de l'XP
-            xp_gagne = 0
-            if resultat.get('correct', False):
-                difficulte = exercice_data.get('difficulte', 1)
-                xp_gagne = calculer_xp(difficulte, True)
                 
-                # Mise à jour de la progression
-                progression = charger_progression(username)
-                progression['xp'] = progression.get('xp', 0) + xp_gagne
-                progression['exercices_reussis'] = progression.get('exercices_reussis', 0) + 1
-                mettre_a_jour_progression(username, progression)
-                
-                # Vérification des nouveaux badges
-                nouveaux_badges = verifier_nouveaux_badges(username)
-                resultat['nouveaux_badges'] = nouveaux_badges
-            
-            # Log de l'événement
+        except Exception as e:
+            log_error(f"Erreur endpoint verifier: {str(e)}\n{traceback.format_exc()}")
+            return jsonify({
+                'success': False,
+                'error': 'Erreur interne du serveur'
+            }), 500
 
 
     @app.route('/api/terminal/execute', methods=['POST'])
