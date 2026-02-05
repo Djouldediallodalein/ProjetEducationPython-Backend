@@ -248,7 +248,7 @@ def register_routes(app, limiter):
         except Exception as e:
             error_details = f"Erreur lors de l'inscription: {str(e)}\n{traceback.format_exc()}"
             log_error('registration_error', str(e), traceback.format_exc())
-            print(f"\n🔴 ERREUR INSCRIPTION:\n{error_details}")  # Debug log
+            print(f"\nERREUR INSCRIPTION:\n{error_details}")  # Debug log
             return jsonify({
                 'success': False,
                 'error': 'Erreur interne du serveur',
@@ -605,22 +605,63 @@ def register_routes(app, limiter):
                     'error': 'Domaine invalide'
                 }), 400
             
-            # Vérification avec IA
-            from modules.core.fonctions import verifier_reponse, analyser_verdict
+            # Vérification avec IA ou BANQUE
+            from modules.core.fonctions import verifier_reponse, analyser_verdict, obtenir_exercice_par_id
             
             try:
                 # Récupérer l'exercice pour le contexte
+                exercice_id = data.get('exercice_id', '')
                 exercice_enonce = data.get('exercice_enonce', '')
                 
-                # 1. Vérifier via IA
-                correction_ia = verifier_reponse(
-                    exercice=exercice_enonce,
-                    reponse_utilisateur=code_utilisateur,
-                    domaine=domaine
-                )
+                # 1. Chercher si exercice existe dans la banque (avec correction)
+                exercice_banque = obtenir_exercice_par_id(exercice_id) if exercice_id else None
                 
-                # 2. Analyser le verdict
-                is_correct = analyser_verdict(correction_ia)
+                if exercice_banque and 'correction_attendue' in exercice_banque:
+                    # ✅ CORRECTION SANS IA (depuis banque)
+                    print("[Vérification depuis la banque - SANS IA]")
+                    correction_attendue = exercice_banque['correction_attendue']
+                    
+                    # Vérification simple : contient les mots-clés attendus
+                    code_lower = code_utilisateur.lower()
+                    mots_cles = correction_attendue.get('mots_cles', [])
+                    
+                    contains_all = all(mot.lower() in code_lower for mot in mots_cles)
+                    
+                    if contains_all:
+                        is_correct = True
+                        correction_ia = f"CORRECT : Excellent ! Vous avez bien utilisé {', '.join(mots_cles)}."
+                    else:
+                        is_correct = False
+                        indice = exercice_banque.get('indice', 'Réessayez')
+                        mots_manquants = [mot for mot in mots_cles if mot.lower() not in code_lower]
+                        correction_ia = f"INCORRECT : Il manque certains éléments. Indice : {indice}. Pensez à utiliser : {', '.join(mots_manquants)}"
+                else:
+                    # ❌ PAS DE CORRECTION → UTILISER IA (1 seul appel)
+                    print("[Vérification par IA - Première fois]")
+                    correction_ia = verifier_reponse(
+                        exercice=exercice_enonce,
+                        reponse_utilisateur=code_utilisateur,
+                        domaine=domaine
+                    )
+                    
+                    # Stocker la correction dans la banque pour la prochaine fois
+                    if exercice_banque:
+                        # Extraire les mots-clés de la correction IA
+                        import re
+                        mots_cles_detectes = re.findall(r'\b[a-z_]+\b', code_utilisateur.lower())[:5]
+                        
+                        exercice_banque['correction_attendue'] = {
+                            'mots_cles': mots_cles_detectes,
+                            'correction_ia_initiale': correction_ia
+                        }
+                        
+                        # Sauvegarder dans la banque
+                        from modules.core.fonctions import sauvegarder_banque, charger_banque
+                        banque = charger_banque()
+                        # Mettre à jour l'exercice dans la banque...
+                        sauvegarder_banque(banque)
+                    
+                    is_correct = analyser_verdict(correction_ia)
                 
                 # 3. Gérer les tentatives
                 tentatives_restantes = 3 - tentative
@@ -628,7 +669,7 @@ def register_routes(app, limiter):
                 
                 # 4. Préparer le message
                 if is_correct:
-                    message = "✅ " + correction_ia
+                    message = "CORRECT: " + correction_ia
                     # Mise à jour XP et progression
                     try:
                         from modules.core.xp_systeme import calculer_xp
@@ -644,11 +685,11 @@ def register_routes(app, limiter):
                     except Exception as prog_error:
                         print(f"Erreur progression: {prog_error}")
                 else:
-                    message = "❌ " + correction_ia
+                    message = "INCORRECT: " + correction_ia
                     if tentatives_restantes > 0:
-                        message += f"\n\n💡 Il vous reste {tentatives_restantes} tentative(s)"
+                        message += f"\n\nIl vous reste {tentatives_restantes} tentative(s)"
                     elif peut_voir_correction:
-                        message += "\n\n📖 Voulez-vous voir la correction ?"
+                        message += "\n\nVoulez-vous voir la correction ?"
                 
                 # 5. Log de sécurité
                 log_security_event('exercice_verification', {
@@ -677,7 +718,7 @@ def register_routes(app, limiter):
                     'success': True,
                     'data': {
                         'correct': False,
-                        'message': f'❌ Erreur lors de la vérification: {str(exec_error)}',
+                        'message': f'Erreur lors de la vérification: {str(exec_error)}',
                         'tentatives_restantes': 3 - tentative,
                         'peut_voir_correction': False
                     }

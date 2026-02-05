@@ -34,7 +34,18 @@ def sauvegarder_banque(banque):
 
 
 def ajouter_exercice_banque(theme, niveau, exercice):
-    """Ajoute un exercice généré par l'IA dans la banque s'il n'existe pas déjà"""
+    """Ajoute un exercice généré par l'IA dans la banque s'il n'existe pas déjà
+    
+    Structure de l'exercice :
+    {
+        "type": "code" | "texte" | "qcm",
+        "enonce": "...",
+        "id": "unique_id",
+        "correction_attendue": "...",  # Pour vérifier sans IA
+        "indice": "...",
+        "exemple": "..."
+    }
+    """
     banque = charger_banque()
     
     if theme not in banque:
@@ -44,9 +55,31 @@ def ajouter_exercice_banque(theme, niveau, exercice):
     if niveau_str not in banque[theme]:
         banque[theme][niveau_str] = []
     
-    if exercice not in banque[theme][niveau_str]:
+    # Générer un ID unique si pas présent
+    if 'id' not in exercice:
+        import hashlib
+        exercice['id'] = hashlib.md5(exercice['enonce'].encode()).hexdigest()[:10]
+    
+    # Vérifier si l'exercice existe déjà (par ID)
+    exercice_existe = any(ex.get('id') == exercice.get('id') for ex in banque[theme][niveau_str])
+    
+    if not exercice_existe:
         banque[theme][niveau_str].append(exercice)
         sauvegarder_banque(banque)
+        return True
+    return False
+
+
+def obtenir_exercice_par_id(exercice_id):
+    """Récupère un exercice de la banque par son ID"""
+    banque = charger_banque()
+    
+    for theme in banque.values():
+        for niveau in theme.values():
+            for exercice in niveau:
+                if exercice.get('id') == exercice_id:
+                    return exercice
+    return None
 
 
 

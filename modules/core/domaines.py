@@ -22,7 +22,7 @@ def initialiser_domaines_par_defaut():
     domaines = {
         "python": {
             "nom": "Python",
-            "emoji": "🐍",
+            "emoji": "",
             "type": "Langage de programmation",
             "description": "Langage polyvalent, idéal pour débuter",
             "popularite": 1,
@@ -122,7 +122,7 @@ def initialiser_domaines_par_defaut():
         },
         "sql": {
             "nom": "SQL",
-            "emoji": "🗄️",
+            "emoji": "",
             "type": "Langage de base de données",
             "description": "Gestion et requêtes de bases de données",
             "popularite": 5,
@@ -147,7 +147,7 @@ def initialiser_domaines_par_defaut():
         },
         "html_css": {
             "nom": "HTML/CSS",
-            "emoji": "🎨",
+            "emoji": "",
             "type": "Langages web",
             "description": "Structure et style des pages web",
             "popularite": 6,
@@ -172,7 +172,7 @@ def initialiser_domaines_par_defaut():
         },
         "mathematiques": {
             "nom": "Mathématiques",
-            "emoji": "🔢",
+            "emoji": "",
             "type": "Matière académique",
             "description": "Algèbre, géométrie, analyse",
             "popularite": 7,
@@ -234,7 +234,7 @@ def choisir_domaine():
     domaines = charger_domaines()
     
     print("\n" + "="*70)
-    print("🌍 CHOIX DU DOMAINE D'APPRENTISSAGE".center(70))
+    print("CHOIX DU DOMAINE D'APPRENTISSAGE".center(70))
     print("="*70)
     print("\nChoisissez ce que vous voulez apprendre :\n")
     
@@ -242,7 +242,7 @@ def choisir_domaine():
     domaines_tries = sorted(domaines.items(), key=lambda x: x[1].get('popularite', 99))
     
     for i, (id_domaine, info) in enumerate(domaines_tries, 1):
-        emoji = info.get('emoji', '📚')
+        emoji = info.get('emoji', '')
         nom = info['nom']
         type_dom = info.get('type', 'Divers')
         description = info.get('description', '')
@@ -250,11 +250,11 @@ def choisir_domaine():
         print(f"     → {description}")
         print()
     
-    print(f"  {len(domaines_tries) + 1}. ➕ Créer un domaine personnalisé")
-    print("  0. ↩️  Retour")
+    print(f"  {len(domaines_tries) + 1}. Créer un domaine personnalisé")
+    print("  0. Retour")
     print("="*70)
     
-    choix = input("\n👉 Votre choix : ").strip()
+    choix = input("\nVotre choix : ").strip()
     
     try:
         choix_int = int(choix)
@@ -263,36 +263,36 @@ def choisir_domaine():
         elif 1 <= choix_int <= len(domaines_tries):
             id_domaine = domaines_tries[choix_int - 1][0]
             domaine_choisi = domaines[id_domaine]
-            print(f"\n✅ Domaine sélectionné : {domaine_choisi.get('emoji', '')} {domaine_choisi['nom']}")
+            print(f"\nDomaine sélectionné : {domaine_choisi.get('emoji', '')} {domaine_choisi['nom']}")
             return id_domaine, domaine_choisi
         elif choix_int == len(domaines_tries) + 1:
             return creer_domaine_personnalise()
     except:
         pass
     
-    print("❌ Choix invalide")
+    print("Choix invalide")
     return None, None
 
 def creer_domaine_personnalise():
     """Crée un domaine personnalisé par l'utilisateur"""
     print("\n" + "="*70)
-    print("🎨 CRÉATION D'UN DOMAINE PERSONNALISÉ".center(70))
+    print("CRÉATION D'UN DOMAINE PERSONNALISÉ".center(70))
     print("="*70)
     
-    nom = input("\n📝 Nom du domaine (ex: 'Électronique', 'Espagnol', 'VHDL') : ").strip()
+    nom = input("\nNom du domaine (ex: 'Électronique', 'Espagnol', 'VHDL') : ").strip()
     if not nom:
-        print("❌ Annulé")
+        print("Annulé")
         return None, None
     
-    description = input("📄 Description courte : ").strip()
+    description = input("Description courte : ").strip()
     
-    print("\n📂 Type de domaine :")
+    print("\nType de domaine :")
     print("  1. Langage de programmation")
     print("  2. Matière académique")
     print("  3. Langue étrangère")
     print("  4. Autre")
     
-    type_choix = input("👉 Votre choix : ").strip()
+    type_choix = input("Votre choix : ").strip()
     types = {
         "1": "Langage de programmation",
         "2": "Matière académique",
@@ -301,7 +301,7 @@ def creer_domaine_personnalise():
     }
     type_domaine = types.get(type_choix, "Autre")
     
-    print("\n📚 Entrez les thèmes/chapitres (un par ligne, ligne vide pour terminer) :")
+    print("\nEntrez les thèmes/chapitres (un par ligne, ligne vide pour terminer) :")
     themes = []
     i = 1
     while True:
@@ -313,7 +313,7 @@ def creer_domaine_personnalise():
     
     if not themes:
         themes = ["Concepts de base", "Niveau intermédiaire", "Niveau avancé"]
-        print("⚠️  Aucun thème saisi, thèmes par défaut ajoutés")
+        print("Aucun thème saisi, thèmes par défaut ajoutés")
     
     # Créer ID unique
     id_domaine = nom.lower().replace(" ", "_").replace("/", "_")
@@ -328,7 +328,7 @@ def creer_domaine_personnalise():
     
     nouveau_domaine = {
         "nom": nom,
-        "emoji": "🎯",
+        "emoji": "",
         "type": type_domaine,
         "description": description,
         "popularite": 99,
@@ -345,8 +345,8 @@ def creer_domaine_personnalise():
     domaines[id_domaine] = nouveau_domaine
     sauvegarder_domaines(domaines)
     
-    print(f"\n✅ Domaine '{nom}' créé avec succès !")
-    print(f"📊 {len(themes)} thèmes ajoutés")
+    print(f"\nDomaine '{nom}' créé avec succès !")
+    print(f"{len(themes)} thèmes ajoutés")
     
     return id_domaine, nouveau_domaine
 
@@ -374,7 +374,7 @@ def obtenir_nom_domaine(id_domaine):
     domaines = charger_domaines()
     if id_domaine in domaines:
         info = domaines[id_domaine]
-        emoji = info.get('emoji', '📚')
+        emoji = info.get('emoji', '')
         nom = info['nom']
         return f"{emoji} {nom}"
     return "Domaine inconnu"

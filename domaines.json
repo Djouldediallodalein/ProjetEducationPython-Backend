@@ -1,7 +1,7 @@
 {
     "python": {
         "nom": "Python",
-        "emoji": "🐍",
+        "emoji": "",
         "type": "Langage de programmation",
         "description": "Langage polyvalent, idéal pour débuter",
         "popularite": 1,
@@ -26,7 +26,7 @@
     },
     "javascript": {
         "nom": "JavaScript",
-        "emoji": "⚡",
+        "emoji": "",
         "type": "Langage de programmation",
         "description": "Langage du web, interactif et dynamique",
         "popularite": 2,
@@ -51,7 +51,7 @@
     },
     "java": {
         "nom": "Java",
-        "emoji": "☕",
+        "emoji": "",
         "type": "Langage de programmation",
         "description": "Langage orienté objet, puissant et universel",
         "popularite": 3,
@@ -76,7 +76,7 @@
     },
     "c": {
         "nom": "C",
-        "emoji": "⚙️",
+        "emoji": "",
         "type": "Langage de programmation",
         "description": "Langage bas niveau, performance maximale",
         "popularite": 4,
@@ -101,7 +101,7 @@
     },
     "sql": {
         "nom": "SQL",
-        "emoji": "🗄️",
+        "emoji": "",
         "type": "Langage de base de données",
         "description": "Gestion et requêtes de bases de données",
         "popularite": 5,
@@ -126,7 +126,7 @@
     },
     "html_css": {
         "nom": "HTML/CSS",
-        "emoji": "🎨",
+        "emoji": "",
         "type": "Langages web",
         "description": "Structure et style des pages web",
         "popularite": 6,
@@ -151,7 +151,7 @@
     },
     "mathematiques": {
         "nom": "Mathématiques",
-        "emoji": "🔢",
+        "emoji": "",
         "type": "Matière académique",
         "description": "Algèbre, géométrie, analyse",
         "popularite": 7,
@@ -176,7 +176,7 @@
     },
     "anglais": {
         "nom": "Anglais",
-        "emoji": "🇬🇧",
+        "emoji": "",
         "type": "Langue étrangère",
         "description": "Grammaire, vocabulaire, conversation",
         "popularite": 8,
