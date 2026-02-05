@@ -494,7 +494,8 @@ def register_routes(app, limiter):
                 }), 400
             
             data = request.get_json()
-            username = request.username
+            # Username fourni par @require_auth
+            username = getattr(request, 'username', 'anonymous')
             
             # Validation des clés requises
             required_keys = ['domaine', 'theme']
