@@ -199,7 +199,7 @@ def require_role(*roles):
     return decorator
 
 
-def validate_password_strength(password: str) -> tuple:
+def validate_password_strength(password: str) -> dict:
     """
     Valide la force d'un mot de passe
     
@@ -207,22 +207,27 @@ def validate_password_strength(password: str) -> tuple:
         password: Le mot de passe à valider
         
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
+        dict: {'valid': bool, 'errors': list}
     """
+    errors = []
+    
     if len(password) < 8:
-        return False, "Le mot de passe doit contenir au moins 8 caractères"
+        errors.append("Le mot de passe doit contenir au moins 8 caractères")
     
     if not any(c.isupper() for c in password):
-        return False, "Le mot de passe doit contenir au moins une majuscule"
+        errors.append("Le mot de passe doit contenir au moins une majuscule")
     
     if not any(c.islower() for c in password):
-        return False, "Le mot de passe doit contenir au moins une minuscule"
+        errors.append("Le mot de passe doit contenir au moins une minuscule")
     
     if not any(c.isdigit() for c in password):
-        return False, "Le mot de passe doit contenir au moins un chiffre"
+        errors.append("Le mot de passe doit contenir au moins un chiffre")
     
     special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
     if not any(c in special_chars for c in password):
-        return False, "Le mot de passe doit contenir au moins un caractère spécial (!@#$%^&*()_+-=[]{}|;:,.<>?)"
+        errors.append("Le mot de passe doit contenir au moins un caractère spécial (!@#$%^&*()_+-=[]{}|;:,.<>?)")
     
-    return True, None
+    return {
+        'valid': len(errors) == 0,
+        'errors': errors
+    }

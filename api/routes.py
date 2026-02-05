@@ -209,10 +209,10 @@ def register_routes(app, limiter):
             
             # Sauvegarder l'utilisateur
             utilisateurs[username] = nouveau_utilisateur
-            creer_utilisateur(username)
+            creer_utilisateur(username, email=email, password_hash=password_hash, role='user')
             
             # Générer les tokens JWT
-            access_token = create_access_token(username)
+            access_token = create_access_token(username, username, 'user')
             refresh_token = create_refresh_token(username)
             
             # Log de l'événement
@@ -298,7 +298,8 @@ def register_routes(app, limiter):
             user_data['statistiques']['derniere_connexion'] = datetime.now().isoformat()
             
             # Générer les tokens JWT
-            access_token = create_access_token(username)
+            user_role = user_data.get('role', 'user')
+            access_token = create_access_token(username, username, user_role)
             refresh_token = create_refresh_token(username)
             
             # Log de l'événement
@@ -353,9 +354,9 @@ def register_routes(app, limiter):
             # Vérifier et décoder le refresh token
             try:
                 import jwt
-                from modules.core.security import SECRET_KEY
+                from modules.core.security import JWT_SECRET_KEY, JWT_ALGORITHM
                 
-                payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=['HS256'])
+                payload = jwt.decode(refresh_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
                 
                 if payload.get('type') != 'refresh':
                     log_security_event('invalid_token_type', {
@@ -367,12 +368,23 @@ def register_routes(app, limiter):
                         'error': 'Token invalide'
                     }), 401
                 
-                username = payload.get('username')
+                user_id = payload.get('user_id')
+                
+                # Récupérer les infos utilisateur pour générer un nouveau token
+                utilisateurs = charger_utilisateurs()
+                if user_id not in utilisateurs:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Utilisateur non trouvé'
+                    }), 404
+                
+                user_data = utilisateurs[user_id]
+                user_role = user_data.get('role', 'user')
                 
                 # Générer un nouveau access token
-                new_access_token = create_access_token(username)
+                new_access_token = create_access_token(user_id, user_id, user_role)
                 
-                log_security_event('token_refreshed', {'username': username})
+                log_security_event('token_refreshed', {'username': user_id})
                 
                 return jsonify({
                     'success': True,
@@ -412,7 +424,7 @@ def register_routes(app, limiter):
         Returns: {success, data: {user}}
         """
         try:
-            username = request.user['username']
+            username = request.username
             
             utilisateurs = charger_utilisateurs()
             
@@ -466,7 +478,7 @@ def register_routes(app, limiter):
                 }), 400
             
             data = request.get_json()
-            username = request.user['username']
+            username = request.username
             
             # Validation des clés requises
             required_keys = ['domaine', 'theme']
@@ -547,7 +559,7 @@ def register_routes(app, limiter):
                 }), 400
             
             data = request.get_json()
-            username = request.user['username']
+            username = request.username
             
             # Validation des clés requises
             required_keys = ['exercice_id', 'reponse', 'exercice_data']
@@ -626,7 +638,7 @@ def register_routes(app, limiter):
                 }), 400
             
             data = request.get_json()
-            username = request.user['username']
+            username = request.username
             
             # Validation des clés requises
             required_keys = ['code']
@@ -640,17 +652,15 @@ def register_routes(app, limiter):
             inputs = data.get('inputs', [])
             
             # Validation du code
-            code_validation = validate_code_input(code)
-            if not code_validation['valid']:
+            if not validate_code_input(code):
                 log_security_event('dangerous_code_attempt', {
                     'username': username,
-                    'reason': code_validation['error'],
+                    'reason': 'Invalid code input',
                     'code_preview': code[:100]
                 })
                 return jsonify({
                     'success': False,
-                    'error': 'Code refusé pour des raisons de sécurité',
-                    'details': code_validation['error']
+                    'error': 'Code refusé pour des raisons de sécurité'
                 }), 400
             
             # Exécution sécurisée du code
@@ -696,7 +706,7 @@ def register_routes(app, limiter):
                 }), 400
             
             data = request.get_json()
-            username = request.user['username']
+            username = request.username
             
             # Validation des clés requises
             required_keys = ['code', 'tests']
@@ -710,17 +720,15 @@ def register_routes(app, limiter):
             tests = data.get('tests', [])
             
             # Validation du code
-            code_validation = validate_code_input(code)
-            if not code_validation['valid']:
+            if not validate_code_input(code):
                 log_security_event('dangerous_code_attempt', {
                     'username': username,
-                    'reason': code_validation['error'],
+                    'reason': 'Invalid code input',
                     'code_preview': code[:100]
                 })
                 return jsonify({
                     'success': False,
-                    'error': 'Code refusé pour des raisons de sécurité',
-                    'details': code_validation['error']
+                    'error': 'Code refusé pour des raisons de sécurité'
                 }), 400
             
             # Exécution des tests
@@ -765,7 +773,7 @@ def register_routes(app, limiter):
         Returns: {success, data: {progression}}
         """
         try:
-            username = request.user['username']
+            username = request.username
             
             progression = charger_progression(username)
             
@@ -808,7 +816,7 @@ def register_routes(app, limiter):
                 }), 400
             
             data = request.get_json()
-            username = request.user['username']
+            username = request.username
             
             # Validation des clés requises
             required_keys = ['progression']
@@ -853,7 +861,7 @@ def register_routes(app, limiter):
         Returns: {success, data: {stats}}
         """
         try:
-            username = request.user['username']
+            username = request.username
             
             progression = charger_progression(username)
             
@@ -1003,7 +1011,7 @@ def register_routes(app, limiter):
         Returns: {success, data: {stats}}
         """
         try:
-            current_user = request.user['username']
+            current_user = request.username
             
             # Sanitization
             username = sanitize_string(username)
@@ -1083,7 +1091,7 @@ def register_routes(app, limiter):
                     'error': 'Content-Type doit être application/json'
                 }), 400
             
-            current_user = request.user['username']
+            current_user = request.username
             username = sanitize_string(username)
             
             # Vérification des permissions
@@ -1170,7 +1178,7 @@ def register_routes(app, limiter):
         Returns: {success, data: {xp_info}}
         """
         try:
-            username = request.user['username']
+            username = request.username
             
             progression = charger_progression(username)
             xp_total = progression.get('xp', 0)
@@ -1221,7 +1229,7 @@ def register_routes(app, limiter):
         Returns: {success, data: {badges}}
         """
         try:
-            username = request.user['username']
+            username = request.username
             
             progression = charger_progression(username)
             badges = progression.get('badges', [])
@@ -1308,7 +1316,7 @@ def register_routes(app, limiter):
         """
         try:
             username = sanitize_string(username)
-            current_user = request.user['username']
+            current_user = request.username
             
             # Empêcher la suppression de soi-même
             if username == current_user:
@@ -1391,4 +1399,5 @@ def register_routes(app, limiter):
             'success': False,
             'error': 'Erreur interne du serveur'
         }), 500
+
 

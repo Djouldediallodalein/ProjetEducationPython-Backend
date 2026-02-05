@@ -36,47 +36,47 @@ def sanitize_string(text: str, max_length: int = 1000) -> str:
     return text
 
 
-def validate_username(username: str) -> tuple:
+def validate_username(username: str) -> bool:
     """
     Valide un nom d'utilisateur
     
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
+        bool: True si valide, False sinon
     """
     if not username:
-        return False, "Le nom d'utilisateur est requis"
+        return False
     
     # Nettoyer
     username = sanitize_string(username, max_length=50)
     
     # Longueur
     if len(username) < 3:
-        return False, "Le nom d'utilisateur doit contenir au moins 3 caractères"
+        return False
     
-    if len(username) > 50:
-        return False, "Le nom d'utilisateur ne peut pas dépasser 50 caractères"
+    if len(username) > 20:
+        return False
     
     # Format: lettres, chiffres, tirets, underscores uniquement
     if not re.match(r'^[a-zA-Z0-9_-]+$', username):
-        return False, "Le nom d'utilisateur ne peut contenir que des lettres, chiffres, tirets et underscores"
+        return False
     
     # Pas de mots réservés
     reserved = ['admin', 'root', 'system', 'api', 'null', 'undefined', 'delete', 'drop']
     if username.lower() in reserved:
-        return False, "Ce nom d'utilisateur est réservé"
+        return False
     
-    return True, None
+    return True
 
 
-def validate_email_address(email: str) -> tuple:
+def validate_email_address(email: str) -> bool:
     """
     Valide une adresse email
     
     Returns:
-        tuple: (is_valid: bool, error_message: str or None, normalized_email: str or None)
+        bool: True si valide, False sinon
     """
     if not email:
-        return False, "L'email est requis", None
+        return False
     
     # Nettoyer
     email = sanitize_string(email, max_length=255)
@@ -84,25 +84,24 @@ def validate_email_address(email: str) -> tuple:
     try:
         # Validation stricte avec email-validator
         valid = validate_email(email, check_deliverability=False)
-        normalized_email = valid.normalized
-        return True, None, normalized_email
-    except EmailNotValidError as e:
-        return False, f"Email invalide: {str(e)}", None
+        return True
+    except EmailNotValidError:
+        return False
 
 
-def validate_code_input(code: str) -> tuple:
+def validate_code_input(code: str) -> bool:
     """
     Valide et sécurise le code Python soumis
     
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
+        bool: True si valide, False sinon
     """
     if not code:
-        return False, "Le code est requis"
+        return False
     
     # Limiter la taille (protection contre DoS)
     if len(code) > 50000:  # 50KB max
-        return False, "Le code est trop long (maximum 50KB)"
+        return False
     
     # Vérifier les caractères suspects
     dangerous_patterns = [
@@ -114,55 +113,55 @@ def validate_code_input(code: str) -> tuple:
     
     for pattern in dangerous_patterns:
         if re.search(pattern, code):
-            return False, f"Pattern suspect détecté: {pattern}"
+            return False
     
-    return True, None
+    return True
 
 
-def validate_integer(value, min_val: int = None, max_val: int = None, field_name: str = "valeur") -> tuple:
+def validate_integer(value, min_val: int = None, max_val: int = None, field_name: str = "valeur") -> bool:
     """
     Valide un entier
     
     Returns:
-        tuple: (is_valid: bool, error_message: str or None, value: int or None)
+        bool: True si valide, False sinon
     """
     try:
         val = int(value)
         
         if min_val is not None and val < min_val:
-            return False, f"{field_name} doit être >= {min_val}", None
+            return False
         
         if max_val is not None and val > max_val:
-            return False, f"{field_name} doit être <= {max_val}", None
+            return False
         
-        return True, None, val
+        return True
     except (ValueError, TypeError):
-        return False, f"{field_name} doit être un nombre entier", None
+        return False
 
 
-def validate_json_keys(data: dict, required_keys: list, optional_keys: list = None) -> tuple:
+def validate_json_keys(data: dict, required_keys: list, optional_keys: list = None) -> bool:
     """
     Valide les clés d'un dictionnaire JSON
     
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
+        bool: True si valide, False sinon
     """
     if not isinstance(data, dict):
-        return False, "Les données doivent être un objet JSON"
+        return False
     
     # Vérifier les clés requises
     missing = [key for key in required_keys if key not in data]
     if missing:
-        return False, f"Clés manquantes: {', '.join(missing)}"
+        return False
     
     # Vérifier les clés inattendues
     if optional_keys is not None:
         allowed = set(required_keys + optional_keys)
         unexpected = [key for key in data.keys() if key not in allowed]
         if unexpected:
-            return False, f"Clés non autorisées: {', '.join(unexpected)}"
+            return False
     
-    return True, None
+    return True
 
 
 def sanitize_filename(filename: str) -> str:
@@ -186,22 +185,22 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
-def validate_domain(domain: str) -> tuple:
+def validate_domain(domain: str) -> bool:
     """
     Valide un nom de domaine
     
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
+        bool: True si valide, False sinon
     """
     if not domain:
-        return False, "Le domaine est requis"
+        return False
     
     # Nettoyer
     domain = sanitize_string(domain, max_length=50)
     
     # Format: lettres, chiffres, underscores uniquement
     if not re.match(r'^[a-zA-Z0-9_]+$', domain):
-        return False, "Le domaine ne peut contenir que des lettres, chiffres et underscores"
+        return False
     
     # Liste de domaines valides (whitelist)
     valid_domains = [
@@ -210,9 +209,9 @@ def validate_domain(domain: str) -> tuple:
     ]
     
     if domain not in valid_domains:
-        return False, f"Domaine invalide. Domaines autorisés: {', '.join(valid_domains)}"
+        return False
     
-    return True, None
+    return True
 
 
 def rate_limit_key_func():
