@@ -13,7 +13,9 @@ except ImportError:
     obtenir_config_ia = None
     obtenir_themes_domaine = None
 
-FICHIER_BANQUE = 'banque_exercices.json'
+# Chemins absolus basés sur le répertoire backend
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+FICHIER_BANQUE = os.path.join(BASE_DIR, 'banque_exercices.json')
 
 def charger_banque():
     """Charge la banque d'exercices depuis le fichier JSON (thread-safe)"""

@@ -32,6 +32,11 @@ from modules.core.logging_config import (
     log_security_event, log_auth_attempt, log_code_execution, log_error
 )
 
+# Helper function pour simplifier les appels à log_error
+def _log_error(error_type, exception):
+    """Wrapper pour log_error avec la bonne signature"""
+    log_error(error_type, str(exception), traceback.format_exc())
+
 # Imports des modules métier
 from modules.core.fonctions import (
     generer_exercice, verifier_reponse, analyser_verdict, 
@@ -83,7 +88,7 @@ def register_routes(app, limiter):
                 }
             }), 200
         except Exception as e:
-            log_error(f"Health check failed: {str(e)}")
+            log_error('health_check_error', str(e))
             return jsonify({
                 'success': False,
                 'error': 'Service unavailable'
@@ -163,7 +168,9 @@ def register_routes(app, limiter):
                 }), 400
             
             # Vérifier si l'utilisateur existe déjà
-            utilisateurs = charger_utilisateurs()
+            utilisateurs_data = charger_utilisateurs()
+            utilisateurs = utilisateurs_data.get('utilisateurs', {})
+            
             if username in utilisateurs:
                 log_security_event('registration_failed', {
                     'reason': 'username_exists',
@@ -176,7 +183,7 @@ def register_routes(app, limiter):
             
             # Vérifier si l'email existe déjà
             for user_data in utilisateurs.values():
-                if user_data.get('email') == email:
+                if user_data and isinstance(user_data, dict) and user_data.get('email') == email:
                     log_security_event('registration_failed', {
                         'reason': 'email_exists',
                         'email': email
@@ -189,11 +196,20 @@ def register_routes(app, limiter):
             # Hash du mot de passe
             password_hash = hash_password(password)
             
-            # Création de l'utilisateur
+            # Création de l'utilisateur via la fonction dédiée
+            # Cette fonction gère correctement la structure du fichier JSON
+            resultat_creation = creer_utilisateur(username, niveau=1, email=email, password_hash=password_hash, role='user')
+            
+            if not resultat_creation:
+                return jsonify({
+                    'success': False,
+                    'error': 'Erreur lors de la création du compte'
+                }), 500
+            
+            # Structure de réponse utilisateur
             nouveau_utilisateur = {
                 'username': username,
                 'email': email,
-                'password_hash': password_hash,
                 'role': 'user',
                 'created_at': datetime.now().isoformat(),
                 'xp': 0,
@@ -206,10 +222,6 @@ def register_routes(app, limiter):
                     'derniere_connexion': None
                 }
             }
-            
-            # Sauvegarder l'utilisateur
-            utilisateurs[username] = nouveau_utilisateur
-            creer_utilisateur(username, email=email, password_hash=password_hash, role='user')
             
             # Générer les tokens JWT
             access_token = create_access_token(username, username, 'user')
@@ -235,7 +247,7 @@ def register_routes(app, limiter):
             
         except Exception as e:
             error_details = f"Erreur lors de l'inscription: {str(e)}\n{traceback.format_exc()}"
-            log_error(error_details)
+            log_error('registration_error', str(e), traceback.format_exc())
             print(f"\n🔴 ERREUR INSCRIPTION:\n{error_details}")  # Debug log
             return jsonify({
                 'success': False,
@@ -275,7 +287,8 @@ def register_routes(app, limiter):
             password = data.get('password', '')
             
             # Charger les utilisateurs
-            utilisateurs = charger_utilisateurs()
+            utilisateurs_data = charger_utilisateurs()
+            utilisateurs = utilisateurs_data.get('utilisateurs', {})
             
             # Vérifier si l'utilisateur existe
             if username not in utilisateurs:
@@ -321,7 +334,7 @@ def register_routes(app, limiter):
             }), 200
             
         except Exception as e:
-            log_error(f"Erreur lors de la connexion: {str(e)}\n{traceback.format_exc()}")
+            log_error("login_error", str(e), traceback.format_exc())
             return jsonify({
                 'success': False,
                 'error': 'Erreur interne du serveur'
