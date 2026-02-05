@@ -678,6 +678,101 @@ def register_routes(app, limiter):
                 resultat['nouveaux_badges'] = nouveaux_badges
             
             # Log de l'événement
+
+
+    @app.route('/api/terminal/execute', methods=['POST'])
+    @limiter.limit("50 per hour")
+    @require_auth
+    def execute_terminal_code():
+        """
+        Exécute du code Python dans un terminal sécurisé
+        Rate limit: 50 requêtes par heure
+        Authentification requise
+        
+        SÉCURITÉ MAXIMALE:
+        - Sandbox Python strict (pas d'accès système, réseau, fichiers)
+        - Timeout de 2 secondes
+        - Blacklist d'imports dangereux
+        - Inputs simulés (pas d'interaction réelle)
+        - Limite de mémoire et boucles
+        
+        Body: {code}
+        Returns: {success, data: {success, output, error}}
+        """
+        try:
+            if not request.is_json:
+                return jsonify({
+                    'success': False,
+                    'error': 'Content-Type doit être application/json'
+                }), 400
+            
+            data = request.get_json()
+            username = getattr(request, 'username', 'anonymous')
+            
+            # Validation
+            if 'code' not in data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Champ requis: code'
+                }), 400
+            
+            code = data.get('code', '')
+            
+            # Limite de taille du code
+            if len(code) > 50000:
+                return jsonify({
+                    'success': False,
+                    'error': 'Code trop long (maximum 50KB)'
+                }), 400
+            
+            # Exécution sécurisée
+            from modules.core.fonctions import executer_code_securise
+            
+            try:
+                # Valeurs d'input simulées pour les tests
+                test_inputs = ["30", "175", "John", "25", "100"]
+                resultat = executer_code_securise(code, timeout_secondes=2, test_inputs=test_inputs)
+                
+                # Log de l'événement
+                log_security_event('terminal_execution', {
+                    'username': username,
+                    'success': resultat.get('success', False),
+                    'execution_time': resultat.get('execution_time', 0),
+                    'code_length': len(code)
+                })
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'success': resultat.get('success', False),
+                        'output': resultat.get('output', ''),
+                        'error': resultat.get('error', ''),
+                        'timeout': resultat.get('timeout', False),
+                        'execution_time': resultat.get('execution_time', 0)
+                    }
+                }), 200
+                
+            except Exception as exec_error:
+                log_error(f"Erreur terminal: {str(exec_error)}\n{traceback.format_exc()}")
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'success': False,
+                        'output': '',
+                        'error': f'Erreur: {str(exec_error)}',
+                        'timeout': False
+                    }
+                }), 200
+                
+        except Exception as e:
+            log_error(f"Erreur endpoint terminal: {str(e)}\n{traceback.format_exc()}")
+            return jsonify({
+                'success': False,
+                'error': 'Erreur interne du serveur'
+            }), 500
+    
+    
+    # Ancien code pour référence (peut être supprimé)
             log_security_event('exercice_verified', {
                 'username': username,
                 'exercice_id': exercice_id,
