@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from modules.core.file_lock import atomic_json_writer, safe_json_read, safe_json_update
 
 
 def obtenir_fichier_progression():
@@ -42,17 +43,16 @@ def initialiser_progression():
 
 
 def charger_progression():
-    """Charge la progression depuis le fichier JSON ou crée une nouvelle progression"""
+    """Charge la progression depuis le fichier JSON ou crée une nouvelle progression (thread-safe)"""
     fichier = obtenir_fichier_progression()
-    if os.path.exists(fichier):
-        with open(fichier, 'r', encoding='utf-8') as f:
-            prog = json.load(f)
-            # Migration : si ancien format (sans domaines), migrer
-            if 'domaines' not in prog:
-                prog = migrer_vers_multi_domaines(prog)
-            return prog
-    else:
+    if not os.path.exists(fichier):
         return initialiser_progression()
+    
+    with safe_json_read(fichier) as prog:
+        # Migration : si ancien format (sans domaines), migrer
+        if 'domaines' not in prog:
+            prog = migrer_vers_multi_domaines(prog)
+        return prog
 
 
 def migrer_vers_multi_domaines(ancienne_prog):
@@ -133,17 +133,10 @@ def obtenir_progression_domaine(domaine=None):
 
 
 def sauvegarder_progression(progression):
-    """Sauvegarde la progression dans le fichier JSON"""
-    try:
-        from modules.core.gestion_erreurs import sauvegarder_json_securise
-        fichier = obtenir_fichier_progression()
-        sauvegarder_json_securise(fichier, progression, sauvegarde_backup=True)
-    except ImportError:
-        # Fallback si gestion_erreurs pas disponible
-        import json
-        fichier = obtenir_fichier_progression()
-        with open(fichier, 'w', encoding='utf-8') as f:
-            json.dump(progression, f, indent=4, ensure_ascii=False)
+    """Sauvegarde la progression dans le fichier JSON de manière atomique et thread-safe"""
+    fichier = obtenir_fichier_progression()
+    with atomic_json_writer(fichier) as writer:
+        writer(progression)
 
 
 

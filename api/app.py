@@ -3,15 +3,22 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
+import sys
 from dotenv import load_dotenv
+
+# Ajouter le répertoire parent au path pour les imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Charger les variables d'environnement
 load_dotenv()
 
+# Importer la validation des secrets (cela vérifiera en production)
+from modules.core.security import FLASK_SECRET_KEY
+
 app = Flask(__name__)
 
 # Configuration de sécurité
-app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev_secret_key_change_me')
+app.config['SECRET_KEY'] = FLASK_SECRET_KEY
 app.config['JSON_AS_ASCII'] = False
 app.config['JSON_SORT_KEYS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max

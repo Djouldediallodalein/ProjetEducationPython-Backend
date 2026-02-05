@@ -7,12 +7,81 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Configuration JWT
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev_secret_key_change_me_in_production')
+# IMPORTANT: En production, ces valeurs DOIVENT être définies dans .env
+FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+
+# Valeurs par défaut UNIQUEMENT pour le développement
+DEV_JWT_SECRET = 'dev_secret_key_ONLY_FOR_DEVELOPMENT_DO_NOT_USE_IN_PRODUCTION'
+DEV_FLASK_SECRET = 'dev_flask_secret_ONLY_FOR_DEVELOPMENT_DO_NOT_USE_IN_PRODUCTION'
+
+# Récupération des secrets
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY')
+
+# VALIDATION STRICTE EN PRODUCTION
+if FLASK_ENV == 'production':
+    if not JWT_SECRET_KEY or JWT_SECRET_KEY == DEV_JWT_SECRET:
+        print("\n" + "="*80)
+        print("ERREUR FATALE DE SÉCURITÉ")
+        print("="*80)
+        print("JWT_SECRET_KEY n'est pas défini ou utilise une valeur de développement.")
+        print("En mode PRODUCTION, vous DEVEZ définir un secret fort dans le fichier .env")
+        print("\nGénérez un secret fort avec :")
+        print("  python -c 'import secrets; print(secrets.token_hex(32))'\n")
+        print("Puis ajoutez dans .env :")
+        print("  JWT_SECRET_KEY=<votre_secret_généré>\n")
+        print("="*80)
+        sys.exit(1)
+    
+    if not FLASK_SECRET_KEY or FLASK_SECRET_KEY == DEV_FLASK_SECRET:
+        print("\n" + "="*80)
+        print("ERREUR FATALE DE SÉCURITÉ")
+        print("="*80)
+        print("FLASK_SECRET_KEY n'est pas défini ou utilise une valeur de développement.")
+        print("En mode PRODUCTION, vous DEVEZ définir un secret fort dans le fichier .env")
+        print("\nGénérez un secret fort avec :")
+        print("  python -c 'import secrets; print(secrets.token_hex(32))'\n")
+        print("Puis ajoutez dans .env :")
+        print("  FLASK_SECRET_KEY=<votre_secret_généré>\n")
+        print("="*80)
+        sys.exit(1)
+    
+    # Vérifier que les secrets sont suffisamment longs (minimum 32 caractères)
+    if len(JWT_SECRET_KEY) < 32:
+        print("\n" + "="*80)
+        print("ERREUR DE SÉCURITÉ")
+        print("="*80)
+        print("JWT_SECRET_KEY est trop court (minimum 32 caractères requis)")
+        print("Générez un nouveau secret avec :")
+        print("  python -c 'import secrets; print(secrets.token_hex(32))'\n")
+        print("="*80)
+        sys.exit(1)
+    
+    if len(FLASK_SECRET_KEY) < 32:
+        print("\n" + "="*80)
+        print("ERREUR DE SÉCURITÉ")
+        print("="*80)
+        print("FLASK_SECRET_KEY est trop court (minimum 32 caractères requis)")
+        print("Générez un nouveau secret avec :")
+        print("  python -c 'import secrets; print(secrets.token_hex(32))'\n")
+        print("="*80)
+        sys.exit(1)
+else:
+    # Mode développement : utiliser les valeurs par défaut si non définies
+    if not JWT_SECRET_KEY:
+        JWT_SECRET_KEY = DEV_JWT_SECRET
+        print("⚠️  WARNING: Utilisation d'un JWT_SECRET_KEY de développement")
+    
+    if not FLASK_SECRET_KEY:
+        FLASK_SECRET_KEY = DEV_FLASK_SECRET
+        print("⚠️  WARNING: Utilisation d'un FLASK_SECRET_KEY de développement")
+
 JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES', 30))
 JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('JWT_REFRESH_TOKEN_EXPIRE_DAYS', 7))

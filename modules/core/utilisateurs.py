@@ -6,6 +6,7 @@ import json
 import os
 from datetime import datetime
 from modules.core.progression import initialiser_progression
+from modules.core.file_lock import atomic_json_writer, safe_json_read, safe_json_update
 
 FICHIER_UTILISATEURS = 'utilisateurs.json'
 DOSSIER_PROGRESSIONS = 'progressions'
@@ -27,17 +28,23 @@ def initialiser_systeme_utilisateurs():
 
 
 def charger_utilisateurs():
-    """Charge la liste des utilisateurs"""
-    if os.path.exists(FICHIER_UTILISATEURS):
-        with open(FICHIER_UTILISATEURS, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {'utilisateur_actif': None, 'utilisateurs': {}}
+    """Charge la liste des utilisateurs de manière thread-safe"""
+    if not os.path.exists(FICHIER_UTILISATEURS):
+        return {'utilisateur_actif': None, 'utilisateurs': {}}
+    
+    with safe_json_read(FICHIER_UTILISATEURS) as data:
+        # S'assurer que la structure est valide
+        if 'utilisateur_actif' not in data:
+            data['utilisateur_actif'] = None
+        if 'utilisateurs' not in data:
+            data['utilisateurs'] = {}
+        return data
 
 
 def sauvegarder_utilisateurs(utilisateurs):
-    """Sauvegarde la liste des utilisateurs"""
-    with open(FICHIER_UTILISATEURS, 'w', encoding='utf-8') as f:
-        json.dump(utilisateurs, f, indent=4, ensure_ascii=False)
+    """Sauvegarde la liste des utilisateurs de manière atomique et thread-safe"""
+    with atomic_json_writer(FICHIER_UTILISATEURS) as writer:
+        writer(utilisateurs)
 
 
 def creer_utilisateur(nom_utilisateur, niveau=1, email='', password_hash='', role='user'):
@@ -74,8 +81,10 @@ def creer_utilisateur(nom_utilisateur, niveau=1, email='', password_hash='', rol
     
     # Créer le fichier de progression
     progression = initialiser_progression()
-    with open(utilisateurs['utilisateurs'][nom_utilisateur]['fichier_progression'], 'w', encoding='utf-8') as f:
-        json.dump(progression, f, indent=4, ensure_ascii=False)
+    fichier_prog = utilisateurs['utilisateurs'][nom_utilisateur]['fichier_progression']
+    
+    with atomic_json_writer(fichier_prog) as writer:
+        writer(progression)
     
     sauvegarder_utilisateurs(utilisateurs)
     print(f"\nUtilisateur '{nom_utilisateur}' cree avec succes !")

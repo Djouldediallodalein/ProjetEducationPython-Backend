@@ -5,6 +5,7 @@ import random
 import json
 import os
 from modules.core.progression import est_exercice_complete
+from modules.core.file_lock import atomic_json_writer, safe_json_read
 try:
     from modules.core.domaines import obtenir_config_ia, obtenir_themes_domaine
 except ImportError:
@@ -15,17 +16,17 @@ except ImportError:
 FICHIER_BANQUE = 'banque_exercices.json'
 
 def charger_banque():
-    """Charge la banque d'exercices depuis le fichier JSON"""
-    if os.path.exists(FICHIER_BANQUE):
-        with open(FICHIER_BANQUE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    else:
+    """Charge la banque d'exercices depuis le fichier JSON (thread-safe)"""
+    if not os.path.exists(FICHIER_BANQUE):
         return {}
+    
+    with safe_json_read(FICHIER_BANQUE) as data:
+        return data
 
 def sauvegarder_banque(banque):
-    """Sauvegarde la banque d'exercices dans le fichier JSON"""
-    with open(FICHIER_BANQUE, 'w', encoding='utf-8') as f:
-        json.dump(banque, f, indent=2, ensure_ascii=False)
+    """Sauvegarde la banque d'exercices dans le fichier JSON (atomique et thread-safe)"""
+    with atomic_json_writer(FICHIER_BANQUE) as writer:
+        writer(banque)
         
         
 
@@ -352,24 +353,33 @@ def verifier_code_dangereux(code):
     
     return True, ""
 
-def executer_code_securise(code, timeout_secondes=5):
+def executer_code_securise(code, timeout_secondes=2):
     """
     Exécute du code Python de manière sécurisée avec restrictions renforcées
     
+    AMÉLIORATIONS DE SÉCURITÉ v2.0 :
+    - Timeout strict réduit à 2 secondes par défaut
+    - Gestion améliorée des timeouts avec cleanup
+    - Capture spécifique des erreurs de mémoire
+    - Messages d'erreur plus clairs et sécurisés
+    
     Args:
         code (str): Le code Python à exécuter
-        timeout_secondes (int): Temps maximum d'exécution (défaut 5s)
+        timeout_secondes (int): Temps maximum d'exécution (défaut 2s)
     
     Returns:
         dict: {
             'success': bool,
             'output': str (stdout),
             'error': str (stderr ou message d'erreur),
-            'timeout': bool
+            'timeout': bool,
+            'execution_time': float (temps d'exécution en secondes)
         }
     """
     import threading
     import time
+    
+    start_time = time.time()
     
     # Vérifier les imports dangereux
     safe, message = verifier_code_dangereux(code)
@@ -379,7 +389,8 @@ def executer_code_securise(code, timeout_secondes=5):
             'output': '',
             'error': message,
             'timeout': False,
-            'dangerous_attempt': True
+            'dangerous_attempt': True,
+            'execution_time': 0
         }
     
     # Limiter la taille du code (protection DoS)
@@ -388,7 +399,8 @@ def executer_code_securise(code, timeout_secondes=5):
             'success': False,
             'output': '',
             'error': 'Code trop long (maximum 50KB)',
-            'timeout': False
+            'timeout': False,
+            'execution_time': 0
         }
     
     # Compter les boucles (protection boucles infinies)
@@ -398,15 +410,18 @@ def executer_code_securise(code, timeout_secondes=5):
             'success': False,
             'output': '',
             'error': 'Trop de boucles detectees (maximum 20)',
-            'timeout': False
+            'timeout': False,
+            'execution_time': 0
         }
     
     # Vérifier la profondeur de récursion
+    recursion_limit_changed = False
     if 'def ' in code:
         # Limiter la profondeur de récursion
         import sys
         old_limit = sys.getrecursionlimit()
         sys.setrecursionlimit(100)  # Maximum 100 niveaux
+        recursion_limit_changed = True
     
     # Préparer la capture des outputs
     stdout_capture = StringIO()
@@ -452,11 +467,19 @@ def executer_code_securise(code, timeout_secondes=5):
     }
     
     # Variable pour stocker le résultat de l'exécution
-    result = {'success': False, 'output': '', 'error': 'Timeout', 'timeout': True}
+    result = {
+        'success': False, 
+        'output': '', 
+        'error': 'Execution Timeout', 
+        'timeout': True,
+        'execution_time': 0
+    }
+    
+    execution_exception = None
     
     def execute_code():
         """Fonction qui exécute le code dans un thread"""
-        nonlocal result
+        nonlocal result, execution_exception
         try:
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
                 exec(code, environnement)
@@ -465,49 +488,71 @@ def executer_code_securise(code, timeout_secondes=5):
                 'success': True,
                 'output': stdout_capture.getvalue(),
                 'error': stderr_capture.getvalue(),
-                'timeout': False
+                'timeout': False,
+                'execution_time': 0  # Sera mis à jour après
             }
-        except RecursionError:
+        except RecursionError as e:
+            execution_exception = e
             result = {
                 'success': False,
                 'output': stdout_capture.getvalue(),
-                'error': 'Recursion trop profonde (maximum 100 niveaux)',
-                'timeout': False
+                'error': 'RecursionError: Recursion trop profonde (maximum 100 niveaux)',
+                'timeout': False,
+                'execution_time': 0
             }
-        except MemoryError:
+        except MemoryError as e:
+            execution_exception = e
             result = {
                 'success': False,
                 'output': stdout_capture.getvalue(),
-                'error': 'Memoire insuffisante',
-                'timeout': False
+                'error': 'MemoryError: Memoire insuffisante - Votre code consomme trop de RAM',
+                'timeout': False,
+                'execution_time': 0
+            }
+        except KeyboardInterrupt:
+            result = {
+                'success': False,
+                'output': stdout_capture.getvalue(),
+                'error': 'Execution interrompue',
+                'timeout': True,
+                'execution_time': 0
             }
         except Exception as e:
+            execution_exception = e
             result = {
                 'success': False,
                 'output': stdout_capture.getvalue(),
                 'error': f'Erreur d\'execution : {type(e).__name__}: {str(e)}',
-                'timeout': False
+                'timeout': False,
+                'execution_time': 0
             }
     
-    # Exécuter dans un thread avec timeout
-    thread = threading.Thread(target=execute_code)
-    thread.daemon = True
+    # Exécuter dans un thread avec timeout strict
+    thread = threading.Thread(target=execute_code, daemon=True)
     thread.start()
-    thread.join(timeout_secondes)
+    thread.join(timeout=timeout_secondes)
     
-    # Restaurer la limite de récursion
-    if 'def ' in code:
+    # Calculer le temps d'exécution
+    execution_time = time.time() - start_time
+    
+    # Restaurer la limite de récursion si changée
+    if recursion_limit_changed:
         import sys
         sys.setrecursionlimit(old_limit)
     
     # Vérifier si le thread est toujours actif (timeout)
     if thread.is_alive():
+        # Thread toujours actif = timeout
         return {
             'success': False,
             'output': stdout_capture.getvalue(),
-            'error': f'Timeout : Votre code prend trop de temps (max {timeout_secondes}s)',
-            'timeout': True
+            'error': f'Execution Timed Out: Votre code a depasse le temps maximum autorise ({timeout_secondes}s). Verifiez les boucles infinies.',
+            'timeout': True,
+            'execution_time': execution_time
         }
+    
+    # Ajouter le temps d'exécution au résultat
+    result['execution_time'] = execution_time
     
     return result
 
