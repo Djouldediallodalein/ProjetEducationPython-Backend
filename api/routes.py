@@ -607,9 +607,21 @@ def register_routes(app, limiter):
                 # Définir des cas de test pour ce thème
                 # Ces valeurs sont FIXES, pas d'input() interactif
                 cas_de_test = [
-                    {"inputs": ["30", "175"], "description": "Test 1: âge=30, taille=175"},
-                    {"inputs": ["25", "168.5"], "description": "Test 2: âge=25, taille=168.5"},
-                    {"inputs": ["50", "182.3"], "description": "Test 3: âge=50, taille=182.3"}
+                    {
+                        "inputs": ["30", "175"], 
+                        "description": "Test 1: âge=30, taille=175",
+                        "expected_keywords": ["30", "175", "int", "float"]
+                    },
+                    {
+                        "inputs": ["25", "168.5"], 
+                        "description": "Test 2: âge=25, taille=168.5",
+                        "expected_keywords": ["25", "168.5", "int", "float"]
+                    },
+                    {
+                        "inputs": ["50", "182.3"], 
+                        "description": "Test 3: âge=50, taille=182.3",
+                        "expected_keywords": ["50", "182.3", "int", "float"]
+                    }
                 ]
                 
                 tests_reussis = 0
@@ -620,12 +632,27 @@ def register_routes(app, limiter):
                     resultat = executer_code_securise(code_utilisateur, test_inputs=test["inputs"])
                     
                     if resultat.get('success'):
-                        tests_reussis += 1
-                        tests_results.append({
-                            'passed': True,
-                            'description': test["description"],
-                            'output': resultat.get('output', '')
-                        })
+                        output = resultat.get('output', '').strip()
+                        
+                        # Vérifier que la sortie contient tous les éléments attendus
+                        all_keywords_present = all(
+                            keyword in output for keyword in test.get("expected_keywords", [])
+                        )
+                        
+                        if all_keywords_present and len(output) > 0:
+                            tests_reussis += 1
+                            tests_results.append({
+                                'passed': True,
+                                'description': test["description"],
+                                'output': output
+                            })
+                        else:
+                            tests_results.append({
+                                'passed': False,
+                                'description': test["description"],
+                                'output': output,
+                                'error': 'La sortie ne correspond pas au format attendu'
+                            })
                     else:
                         tests_results.append({
                             'passed': False,
