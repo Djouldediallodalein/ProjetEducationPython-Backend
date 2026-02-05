@@ -41,7 +41,10 @@ def ajouter_exercice_banque(theme, niveau, exercice):
         "type": "code" | "texte" | "qcm",
         "enonce": "...",
         "id": "unique_id",
-        "correction_attendue": "...",  # Pour vérifier sans IA
+        "solution": "code complet de la solution",
+        "utilise_input": true/false,
+        "cas_test": [{"inputs": [...], "output_attendu": "..."}],
+        "mots_cles": ["input", "int", "print"],
         "indice": "...",
         "exemple": "..."
     }
@@ -115,33 +118,103 @@ def generer_exercice(niveau, theme, domaine='python'):
     
     # Adapter le prompt selon le type d'exercice
     if type_ex == 'code':
-        exemple = "Exemple : 'Écrivez une fonction qui prend un nombre en paramètre et retourne True s'il est pair, False sinon.'"
+        exemple_format = '''{{
+  "enonce": "Créez un script qui demande l'âge et la taille, puis affiche ces infos avec leurs types.",
+  "solution": "age = int(input('Entrez votre âge : '))\\ntaille = float(input('Entrez votre taille en cm : '))\\nprint(f'Vous avez {{age}} ans (type: {{type(age).__name__}}) et mesurez {{taille}} cm (type: {{type(taille).__name__}}).')",
+  "utilise_input": true,
+  "cas_test": [{{"inputs": ["30", "175.5"], "output_attendu": "Vous avez 30 ans (type: int) et mesurez 175.5 cm (type: float)."}}],
+  "mots_cles": ["input", "int", "float", "print", "type"]
+}}'''
+    elif type_ex == 'qcm':
+        exemple_format = '''{{
+  "enonce": "Quel type de données est retourné par la fonction input() en Python ?",
+  "choix": ["int", "str", "float", "bool"],
+  "reponse_correcte": "str",
+  "explication": "La fonction input() retourne toujours une chaîne de caractères (str)",
+  "indice": "Pensez au type par défaut"
+}}'''
     else:
-        exemple = "Exemple : 'Traduisez la phrase suivante en anglais : Bonjour, comment allez-vous ?'"
+        exemple_format = '''{{
+  "enonce": "Traduisez en anglais : Bonjour, comment allez-vous ?",
+  "solution": "Hello, how are you?",
+  "mots_cles": ["hello", "how", "you"]
+}}'''
     
     messages = [
     {
         'role': 'user',
         'content' : f'''Tu es un {role}. Crée un exercice de niveau {niveau} (1=facile, 2=moyen, 3=difficile) sur le thème : {theme}
 
-IMPORTANT : 
-- Donne UNIQUEMENT l\'énoncé de l\'exercice (2-3 phrases maximum)
-- NE donne PAS la solution
-- NE donne PAS d\'exemple
-- NE donne PAS d\'explications
+Format de réponse OBLIGATOIRE (JSON strict) :
 
-{exemple}
+POUR CODE:
+{{
+  "enonce": "L'énoncé de l'exercice (2-3 phrases)",
+  "solution": "Le code complet de la solution",
+  "utilise_input": true/false,
+  "cas_test": [{{"inputs": ["val1", "val2"], "output_attendu": "résultat exact"}}],
+  "mots_cles": ["mot1", "mot2", "mot3"]
+}}
 
-Énoncé :'''
+POUR QCM:
+{{
+  "enonce": "La question",
+  "choix": ["Choix A", "Choix B", "Choix C", "Choix D"],
+  "reponse_correcte": "Choix B",
+  "explication": "Pourquoi c'est correct",
+  "indice": "Un indice"
+}}
+
+EXEMPLE POUR CE TYPE ({type_ex}):
+{exemple_format}
+
+Réponds UNIQUEMENT avec le JSON, rien d'autre.'''
     }
 ]
     response = ollama.chat(model='qwen2.5-coder:14b', messages = messages)
-    exercice_ia = response['message']['content']
+    exercice_ia = response['message']['content'].strip()
     
-    exercice = {
-        "type": type_ex,
-        "enonce": exercice_ia
-    }
+    # Parser le JSON
+    import json
+    try:
+        # Extraire le JSON si entouré de ```
+        if '```json' in exercice_ia:
+            exercice_ia = exercice_ia.split('```json')[1].split('```')[0].strip()
+        elif '```' in exercice_ia:
+            exercice_ia = exercice_ia.split('```')[1].split('```')[0].strip()
+        
+        exercice_data = json.loads(exercice_ia)
+        
+        # Différencier CODE et QCM
+        if type_ex == 'qcm':
+            exercice = {
+                "type": "qcm",
+                "enonce": exercice_data.get('enonce', ''),
+                "choix": exercice_data.get('choix', []),
+                "reponse_correcte": exercice_data.get('reponse_correcte', ''),
+                "explication": exercice_data.get('explication', ''),
+                "indice": exercice_data.get('indice', '')
+            }
+        else:
+            exercice = {
+                "type": type_ex,
+                "enonce": exercice_data.get('enonce', ''),
+                "solution": exercice_data.get('solution', ''),
+                "utilise_input": exercice_data.get('utilise_input', False),
+                "cas_test": exercice_data.get('cas_test', []),
+                "mots_cles": exercice_data.get('mots_cles', [])
+            }
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Erreur parsing JSON IA: {e}")
+        # Fallback : exercice simple sans tests
+        exercice = {
+            "type": type_ex,
+            "enonce": exercice_ia,
+            "solution": "",
+            "utilise_input": False,
+            "cas_test": [],
+            "mots_cles": []
+        }
     
     ajouter_exercice_banque(cle_banque, niveau, exercice)
     
@@ -168,6 +241,122 @@ def afficher_qcm(exercice):
         except ValueError:
             print("Veuillez entrer un nombre.")
 
+
+
+def verifier_reponse_optimisee(exercice, code_utilisateur):
+    """
+    Vérifie la réponse de l'utilisateur SANS appeler l'IA si possible.
+    
+    Stratégie:
+    1. Si QCM → Comparaison directe de la réponse
+    2. Si exercice a des cas_test → Exécuter avec inputs prédéfinis et comparer
+    3. Sinon, fallback sur vérification IA (ancienne méthode)
+    
+    Retourne: (est_correct: bool, message: str)
+    """
+    
+    # CAS 1 : QCM (Quiz à choix multiples)
+    type_exercice = exercice.get('type', 'code')
+    if type_exercice == 'qcm':
+        print("[Vérification QCM - SANS IA]")
+        reponse_correcte = exercice.get('reponse_correcte', '')
+        reponse_utilisateur = code_utilisateur.strip()
+        
+        if reponse_utilisateur.lower() == reponse_correcte.lower():
+            explication = exercice.get('explication', '')
+            return True, f"CORRECT: Bravo ! {explication}"
+        else:
+            indice = exercice.get('indice', 'Réessayez')
+            return False, f"INCORRECT: Ce n'est pas la bonne réponse. Indice : {indice}"
+    
+    # CAS 2 : CODE avec cas de test
+    # Vérifier si l'exercice a des cas de test prédéfinis
+    cas_test = exercice.get('cas_test', [])
+    
+    if cas_test and len(cas_test) > 0:
+        print("[Vérification automatique - SANS IA]")
+        
+        # Prendre le premier cas de test
+        test = cas_test[0]
+        inputs_prevus = test.get('inputs', [])
+        output_attendu = test.get('output_attendu', '')
+        
+        try:
+            # Exécuter le code avec les inputs mockés
+            resultat = executer_code_securise(code_utilisateur, inputs_prevus)
+            
+            if not resultat['success']:
+                # SANITISER l'erreur pour ne pas révéler la solution
+                erreur_brute = resultat.get('error', '')
+                # Retirer les chemins de fichiers et infos sensibles
+                erreur_sanitisee = erreur_brute.split('\n')[-1] if '\n' in erreur_brute else erreur_brute
+                return False, f"INCORRECT: Erreur d'exécution. {erreur_sanitisee}"
+            
+            output_utilisateur = resultat.get('output', '').strip()
+            
+            # COMPARAISON INTELLIGENTE (tolérance ordre, espaces, casse)
+            output_attendu_norm = output_attendu.strip().lower()
+            output_utilisateur_norm = output_utilisateur.strip().lower()
+            
+            # Méthode 1 : Comparaison exacte (normalizée)
+            if output_attendu_norm == output_utilisateur_norm:
+                return True, "CORRECT: Bravo ! Votre code fonctionne parfaitement."
+            
+            # Méthode 2 : Comparaison par contenu (toutes les infos présentes)
+            # Extraire les nombres et mots importants
+            import re
+            nombres_attendus = set(re.findall(r'\d+\.?\d*', output_attendu_norm))
+            nombres_utilisateur = set(re.findall(r'\d+\.?\d*', output_utilisateur_norm))
+            
+            mots_attendus = set(re.findall(r'\b[a-z]+\b', output_attendu_norm))
+            mots_utilisateur = set(re.findall(r'\b[a-z]+\b', output_utilisateur_norm))
+            
+            # Vérifier que tous les nombres et mots-clés importants sont présents
+            if nombres_attendus.issubset(nombres_utilisateur) and len(mots_attendus.intersection(mots_utilisateur)) >= len(mots_attendus) * 0.7:
+                return True, "CORRECT: Bravo ! Votre code produit le bon résultat."
+            
+            # Méthode 3 : Vérifier si output contient les informations essentielles
+            if output_attendu_norm in output_utilisateur_norm or output_utilisateur_norm in output_attendu_norm:
+                return True, "CORRECT: Bravo ! Votre code fonctionne parfaitement."
+            else:
+                # Vérifier les mots-clés si présents
+                mots_cles = exercice.get('mots_cles', [])
+                code_lower = code_utilisateur.lower()
+                mots_manquants = [mot for mot in mots_cles if mot.lower() not in code_lower]
+                
+                if mots_manquants:
+                    return False, f"INCORRECT: Votre code ne produit pas le résultat attendu. Indice : Utilisez {', '.join(mots_manquants[:2])}"
+                else:
+                    return False, f"INCORRECT: Le résultat affiché n'est pas correct. Attendu: '{output_attendu}'"
+                    
+        except Exception as e:
+            return False, f"INCORRECT: Erreur lors de l'exécution. {str(e)}"
+    
+    else:
+        # Pas de cas de test → Vérifier les mots-clés simples si disponibles
+        mots_cles = exercice.get('mots_cles', [])
+        
+        if mots_cles:
+            print("[Vérification par mots-clés - SANS IA]")
+            code_lower = code_utilisateur.lower()
+            mots_manquants = [mot for mot in mots_cles if mot.lower() not in code_lower]
+            
+            if not mots_manquants:
+                # Tous les mots-clés présents, exécuter pour voir si pas d'erreur
+                try:
+                    resultat = executer_code_securise(code_utilisateur)
+                    if resultat['success']:
+                        return True, "CORRECT: Bravo ! Votre code contient les éléments requis."
+                    else:
+                        return False, f"INCORRECT: Erreur d'exécution. {resultat.get('error', '')}"
+                except:
+                    return False, "INCORRECT: Erreur lors de l'exécution."
+            else:
+                return False, f"INCORRECT: Éléments manquants. Indice: Utilisez {', '.join(mots_manquants[:2])}"
+        
+        # Aucune vérification automatique possible → Appel IA
+        print("[Vérification par IA - Fallback]")
+        return None, None  # Signal pour appeler verifier_reponse() classique
 
 
 def verifier_reponse(exercice, reponse_utilisateur, domaine='python'):

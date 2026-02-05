@@ -13,5 +13,35 @@
                 "enonce": "Énoncé: Écrivez un programme Python qui demande à l'utilisateur de saisir son nom et son âge. Ensuite, affichez un message personnalisé indiquant combien d'années le utilisateur aura dans 10 ans."
             }
         ]
+    },
+    "1:Variables (let, const, var)": {
+        "1": [],
+        "2": [],
+        "3": [],
+        "javascript": [
+            {
+                "type": "texte",
+                "enonce": "Créez un script JavaScript qui déclare trois variables (une avec `let`, une avec `const` et une avec `var`) et assignez-leur des valeurs différentes. Ensuite, essayez de modifier les valeurs des variables pour comprendre la différence entre `let`, `const` et `var`."
+            },
+            {
+                "type": "texte",
+                "enonce": "Déclarez trois variables avec `let`, `const`, et `var`. Assignez-leur des valeurs différentes. Quelle est la différence entre les types de déclaration utilisés ?"
+            }
+        ]
+    },
+    "1:Variables et types (int, float, char)": {
+        "1": [],
+        "2": [],
+        "3": [],
+        "c": [
+            {
+                "type": "texte",
+                "enonce": "Déclarez trois variables pour stocker un entier, un nombre à virgule flottante et un caractère. Écrivez ensuite une instruction pour afficher le contenu de ces variables sur l'écran."
+            },
+            {
+                "type": "texte",
+                "enonce": "Déclarez trois variables avec les types int, float et char. Initialisez-les respectivement avec une valeur entière, un nombre décimal et un caractère unique. Puis, échangez leurs valeurs entre elles de manière circulaire (int prend la valeur de float, float prend celle de char, et char prend celle d'int). Affichez les nouvelles valeurs des variables."
+            }
+        ]
     }
 }

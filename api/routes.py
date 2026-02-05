@@ -605,39 +605,27 @@ def register_routes(app, limiter):
                     'error': 'Domaine invalide'
                 }), 400
             
-            # Vérification avec IA ou BANQUE
-            from modules.core.fonctions import verifier_reponse, analyser_verdict, obtenir_exercice_par_id
+            # Vérification OPTIMISÉE (IA au minimum)
+            from modules.core.fonctions import verifier_reponse_optimisee, verifier_reponse, analyser_verdict, obtenir_exercice_par_id
             
             try:
-                # Récupérer l'exercice pour le contexte
+                # Récupérer l'exercice complet pour accéder aux cas_test
                 exercice_id = data.get('exercice_id', '')
                 exercice_enonce = data.get('exercice_enonce', '')
                 
-                # 1. Chercher si exercice existe dans la banque (avec correction)
-                exercice_banque = obtenir_exercice_par_id(exercice_id) if exercice_id else None
+                # 1. Chercher l'exercice dans la banque
+                exercice_complet = obtenir_exercice_par_id(exercice_id) if exercice_id else None
                 
-                if exercice_banque and 'correction_attendue' in exercice_banque:
-                    # ✅ CORRECTION SANS IA (depuis banque)
-                    print("[Vérification depuis la banque - SANS IA]")
-                    correction_attendue = exercice_banque['correction_attendue']
-                    
-                    # Vérification simple : contient les mots-clés attendus
-                    code_lower = code_utilisateur.lower()
-                    mots_cles = correction_attendue.get('mots_cles', [])
-                    
-                    contains_all = all(mot.lower() in code_lower for mot in mots_cles)
-                    
-                    if contains_all:
-                        is_correct = True
-                        correction_ia = f"CORRECT : Excellent ! Vous avez bien utilisé {', '.join(mots_cles)}."
-                    else:
-                        is_correct = False
-                        indice = exercice_banque.get('indice', 'Réessayez')
-                        mots_manquants = [mot for mot in mots_cles if mot.lower() not in code_lower]
-                        correction_ia = f"INCORRECT : Il manque certains éléments. Indice : {indice}. Pensez à utiliser : {', '.join(mots_manquants)}"
-                else:
-                    # ❌ PAS DE CORRECTION → UTILISER IA (1 seul appel)
-                    print("[Vérification par IA - Première fois]")
+                if not exercice_complet:
+                    # Fallback : créer un objet exercice simple
+                    exercice_complet = {'enonce': exercice_enonce}
+                
+                # 2. Tentative de vérification SANS IA
+                est_correct, message = verifier_reponse_optimisee(exercice_complet, code_utilisateur)
+                
+                # 3. Si la fonction retourne None → Fallback sur IA
+                if est_correct is None:
+                    print("[Vérification par IA - Fallback nécessaire]")
                     correction_ia = verifier_reponse(
                         exercice=exercice_enonce,
                         reponse_utilisateur=code_utilisateur,
@@ -649,27 +637,23 @@ def register_routes(app, limiter):
                         # Extraire les mots-clés de la correction IA
                         import re
                         mots_cles_detectes = re.findall(r'\b[a-z_]+\b', code_utilisateur.lower())[:5]
-                        
-                        exercice_banque['correction_attendue'] = {
-                            'mots_cles': mots_cles_detectes,
-                            'correction_ia_initiale': correction_ia
-                        }
-                        
-                        # Sauvegarder dans la banque
-                        from modules.core.fonctions import sauvegarder_banque, charger_banque
-                        banque = charger_banque()
-                        # Mettre à jour l'exercice dans la banque...
-                        sauvegarder_banque(banque)
-                    
-                    is_correct = analyser_verdict(correction_ia)
+                # 3. Si la fonction retourne None → Fallback sur IA
+                if est_correct is None:
+                    print("[Vérification par IA - Fallback nécessaire]")
+                    correction_ia = verifier_reponse(exercice_enonce, code_utilisateur, domaine)
+                    est_correct = analyser_verdict(correction_ia)
+                    message = correction_ia
+                else:
+                    # Vérification réussie SANS IA
+                    correction_ia = message
                 
-                # 3. Gérer les tentatives
+                # 4. Gérer les tentatives
                 tentatives_restantes = 3 - tentative
                 peut_voir_correction = tentative >= 3
                 
-                # 4. Préparer le message
-                if is_correct:
-                    message = "CORRECT: " + correction_ia
+                # 5. Préparer le message
+                if est_correct:
+                    message_final = message
                     # Mise à jour XP et progression
                     try:
                         from modules.core.xp_systeme import calculer_xp
@@ -685,27 +669,27 @@ def register_routes(app, limiter):
                     except Exception as prog_error:
                         print(f"Erreur progression: {prog_error}")
                 else:
-                    message = "INCORRECT: " + correction_ia
+                    message_final = message
                     if tentatives_restantes > 0:
-                        message += f"\n\nIl vous reste {tentatives_restantes} tentative(s)"
+                        message_final += f"\n\nIl vous reste {tentatives_restantes} tentative(s)"
                     elif peut_voir_correction:
-                        message += "\n\nVoulez-vous voir la correction ?"
+                        message_final += "\n\nVoulez-vous voir la correction ?"
                 
-                # 5. Log de sécurité
+                # 6. Log de sécurité
                 log_security_event('exercice_verification', {
                     'username': username,
                     'domaine': domaine,
                     'theme': theme,
-                    'correct': is_correct,
+                    'correct': est_correct,
                     'tentative': tentative
                 })
                 
                 return jsonify({
                     'success': True,
                     'data': {
-                        'correct': is_correct,
-                        'message': message,
-                        'correction_complete': correction_ia,
+                        'correct': est_correct,
+                        'message': message_final,
+                        'correction_complete': message,
                         'tentatives_restantes': tentatives_restantes,
                         'peut_voir_correction': peut_voir_correction,
                         'tentative_actuelle': tentative
