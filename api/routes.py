@@ -721,18 +721,17 @@ def register_routes(app, limiter):
     @require_auth
     def execute_terminal_code():
         """
-        Exécute du code Python dans un terminal sécurisé
-        Rate limit: 50 requêtes par heure
-        Authentification requise
+        Exécute du code MULTI-LANGAGES dans un terminal sécurisé
+        Supporte: Python, JavaScript, Java, C, C++, SQL
         
         SÉCURITÉ MAXIMALE:
-        - Sandbox Python strict (pas d'accès système, réseau, fichiers)
-        - Timeout de 2 secondes
+        - Validation que le langage correspond au domaine
+        - Sandbox par langage (pas d'accès système, réseau, fichiers)
+        - Timeout de 5-10 secondes selon langage
         - Blacklist d'imports dangereux
-        - Inputs simulés (pas d'interaction réelle)
-        - Limite de mémoire et boucles
+        - Détection automatique si code utilise input()
         
-        Body: {code}
+        Body: {code, domaine}
         Returns: {success, data: {success, output, error}}
         """
         try:
@@ -753,6 +752,7 @@ def register_routes(app, limiter):
                 }), 400
             
             code = data.get('code', '')
+            domaine = data.get('domaine', 'python')
             
             # Limite de taille du code
             if len(code) > 50000:
@@ -761,13 +761,20 @@ def register_routes(app, limiter):
                     'error': 'Code trop long (maximum 50KB)'
                 }), 400
             
-            # Exécution sécurisée
-            from modules.core.fonctions import executer_code_securise
+            # VÉRIFICATION: Si code utilise input(), bloquer
+            utilise_input = 'input(' in code or 'scanf' in code or 'Scanner' in code or 'prompt(' in code or 'cin >>' in code
+            if utilise_input:
+                return jsonify({
+                    'success': False,
+                    'error': 'ATTENTION: Votre code utilise input(). Le terminal ne peut pas gérer les saisies interactives. Utilisez le bouton "Soumettre" pour tester avec des valeurs prédéfinies.'
+                }), 400
+            
+            # Exécution multi-langages
+            from modules.core.language_runners import executer_code_langage, detecter_langage_depuis_domaine
             
             try:
-                # Valeurs d'input simulées pour les tests
-                test_inputs = ["30", "175", "John", "25", "100"]
-                resultat = executer_code_securise(code, timeout_secondes=2, test_inputs=test_inputs)
+                langage = detecter_langage_depuis_domaine(domaine)
+                resultat = executer_code_langage(code, langage, inputs=None, domaine=domaine)
                 
                 # Log de l'événement
                 log_security_event('terminal_execution', {

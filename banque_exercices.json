@@ -43,5 +43,20 @@
                 "enonce": "Déclarez trois variables avec les types int, float et char. Initialisez-les respectivement avec une valeur entière, un nombre décimal et un caractère unique. Puis, échangez leurs valeurs entre elles de manière circulaire (int prend la valeur de float, float prend celle de char, et char prend celle d'int). Affichez les nouvelles valeurs des variables."
             }
         ]
+    },
+    "1:Conditions (if/elif/else)": {
+        "1": [],
+        "2": [],
+        "3": [],
+        "python": [
+            {
+                "type": "texte",
+                "enonce": "Énoncé : Écrivez un programme qui demande à l'utilisateur d'entrer une note sur 20. Ensuite, affichez \"Excellent\" si la note est supérieure ou égale à 16, \"Bien\" si la note est entre 14 et 15 (inclus), \"Assez bien\" si la note est entre 12 et 13 (inclus), \"Passable\" si la note est entre 10 et 11 (inclus), et \"Insuffisant\" si la note est inférieure à 10."
+            },
+            {
+                "type": "texte",
+                "enonce": "Énoncé : Écrivez un programme qui demande à l'utilisateur de saisir son âge et affiche s'il est mineur, majeur ou senior (18 ans pour être majeur, 65 ans pour être senior)."
+            }
+        ]
     }
 }
