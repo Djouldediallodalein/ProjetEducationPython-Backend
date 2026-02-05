@@ -930,11 +930,12 @@ def register_routes(app, limiter):
     
     @app.route('/api/domaines', methods=['GET'])
     @limiter.limit("50 per hour")
+    @require_auth
     def get_domaines():
         """
         Récupère la liste de tous les domaines
         Rate limit: 50 requêtes par heure
-        Endpoint public (pas d'authentification requise)
+        Authentification requise
         
         Returns: {success, data: {domaines}}
         """
@@ -963,10 +964,11 @@ def register_routes(app, limiter):
     
     
     @app.route('/api/domaines/<domaine_id>/themes', methods=['GET'])
+    @require_auth
     def get_themes_domaine(domaine_id):
         """
         Récupère les thèmes d'un domaine spécifique
-        Endpoint public (pas d'authentification requise)
+        Authentification requise
         
         Args:
             domaine_id: Identifiant du domaine
