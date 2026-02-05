@@ -307,11 +307,28 @@ import signal
 from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
 
-# Liste des imports dangereux à bloquer
+# ============================================================================
+# SECURITY NOTE: Software Sandbox Active (Blacklist-based)
+# ============================================================================
+# This implementation uses a blacklist approach to block dangerous operations.
+# For production deployment with untrusted users, migrate to containerized
+# isolation (Docker/nsjail) as specified in ROADMAP_V2.md.
+#
+# Current protections:
+# - Blocked imports: os, sys, subprocess, socket, file operations
+# - Blocked functions: eval(), exec(), compile(), open(), __import__()
+# - Execution timeout: 2 seconds default
+# - Memory limit: 50KB code size
+# - Recursion limit: 100 levels
+# ============================================================================
+
+# Liste renforcée des imports dangereux à bloquer
 IMPORTS_INTERDITS = [
     'os', 'sys', 'subprocess', 'shutil', 'socket',
     'requests', 'urllib', 'pathlib', '__import__',
-    'eval', 'exec', 'compile', '__builtins__'
+    'eval', 'exec', 'compile', '__builtins__',
+    'importlib', 'ctypes', 'multiprocessing', 'threading',
+    'pickle', 'shelve', 'tempfile', 'glob', 'fnmatch'
 ]
 
 class TimeoutException(Exception):
@@ -325,6 +342,11 @@ def timeout_handler(signum, frame):
 def verifier_code_dangereux(code):
     """
     Vérifie si le code contient des imports ou instructions dangereux
+    
+    SÉCURITÉ RENFORCÉE :
+    - Blacklist étendue d'imports système/réseau/fichiers
+    - Détection de patterns d'obfuscation (avec/sans espaces)
+    - Blocage des fonctions d'exécution dynamique
     
     Args:
         code (str): Le code Python à vérifier
@@ -345,8 +367,12 @@ def verifier_code_dangereux(code):
             if pattern.lower() in code.lower():
                 return False, f"Import interdit detecte : {interdit}"
     
-    # Vérifier les mots-clés dangereux
-    mots_dangereux = ['exec(', 'eval(', 'compile(', 'open(', '__import__']
+    # Vérifier les mots-clés dangereux (liste étendue)
+    mots_dangereux = [
+        'exec(', 'eval(', 'compile(', 'open(', '__import__(',
+        'globals(', 'locals()', 'vars(', 'dir(',
+        'getattr(', 'setattr(', 'delattr(', 'hasattr('
+    ]
     for mot in mots_dangereux:
         if mot.lower() in code.lower():
             return False, f"Instruction dangereuse detectee : {mot}"
@@ -356,6 +382,11 @@ def verifier_code_dangereux(code):
 def executer_code_securise(code, timeout_secondes=2):
     """
     Exécute du code Python de manière sécurisée avec restrictions renforcées
+    
+    ⚠️ SECURITY NOTICE:
+    This is a SOFTWARE SANDBOX using blacklist filtering. While suitable for
+    educational purposes with trusted users, production deployment requires
+    hardware-level isolation (Docker containers). See ROADMAP_V2.md.
     
     AMÉLIORATIONS DE SÉCURITÉ v2.0 :
     - Timeout strict réduit à 2 secondes par défaut

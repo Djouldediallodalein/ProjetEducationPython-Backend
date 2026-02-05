@@ -8,8 +8,10 @@ from datetime import datetime
 from modules.core.progression import initialiser_progression
 from modules.core.file_lock import atomic_json_writer, safe_json_read, safe_json_update
 
-FICHIER_UTILISATEURS = 'utilisateurs.json'
-DOSSIER_PROGRESSIONS = 'progressions'
+# Chemins absolus basés sur le répertoire backend
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+FICHIER_UTILISATEURS = os.path.join(BASE_DIR, 'utilisateurs.json')
+DOSSIER_PROGRESSIONS = os.path.join(BASE_DIR, 'progressions')
 
 
 def initialiser_systeme_utilisateurs():

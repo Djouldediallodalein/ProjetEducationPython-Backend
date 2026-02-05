@@ -234,10 +234,13 @@ def register_routes(app, limiter):
             }), 201
             
         except Exception as e:
-            log_error(f"Erreur lors de l'inscription: {str(e)}\n{traceback.format_exc()}")
+            error_details = f"Erreur lors de l'inscription: {str(e)}\n{traceback.format_exc()}"
+            log_error(error_details)
+            print(f"\n🔴 ERREUR INSCRIPTION:\n{error_details}")  # Debug log
             return jsonify({
                 'success': False,
-                'error': 'Erreur interne du serveur'
+                'error': 'Erreur interne du serveur',
+                'details': str(e) if os.getenv('FLASK_ENV') == 'development' else None
             }), 500
     
     

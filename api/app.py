@@ -14,8 +14,12 @@ load_dotenv()
 
 # Importer la validation des secrets (cela vérifiera en production)
 from modules.core.security import FLASK_SECRET_KEY
+from modules.core.utilisateurs import initialiser_systeme_utilisateurs
 
 app = Flask(__name__)
+
+# Initialiser le système d'utilisateurs au démarrage
+initialiser_systeme_utilisateurs()
 
 # Configuration de sécurité
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
@@ -23,12 +27,12 @@ app.config['JSON_AS_ASCII'] = False
 app.config['JSON_SORT_KEYS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
-# CORS restreint aux domaines autorisés
-allowed_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
+# CORS - Ouvert pour développement, restreindre en production via .env
+allowed_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173').split(',')
 CORS(app, 
-     origins=allowed_origins,
+     resources={r"/api/*": {"origins": allowed_origins}},
      supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization'],
+     allow_headers=['Content-Type', 'Authorization', 'X-User-Id'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 # Rate Limiting
