@@ -561,15 +561,18 @@ def register_routes(app, limiter):
     @require_auth
     def verifier_reponse_endpoint():
         """
-        Vérifie la réponse à un exercice avec cas de test
+        Vérifie la réponse à un exercice via IA ou banque
         Rate limit: 30 requêtes par heure
         Authentification requise
         
-        SÉCURITÉ: N'exécute PAS le code avec input() interactif
-        Utilise uniquement des cas de test prédéfinis
+        SYSTÈME DE VÉRIFICATION :
+        1. Cherche correction dans banque
+        2. Sinon, demande à l'IA de corriger
+        3. Stocke la correction dans la banque
+        4. Gère les tentatives (3 max) et indices
         
-        Body: {domaine, theme, code}
-        Returns: {success, data: {correct, message, tests_results}}
+        Body: {domaine, theme, code, exercice_id, tentative}
+        Returns: {success, data: {correct, message, tentatives_restantes, peut_voir_correction}}
         """
         try:
             if not request.is_json:
@@ -592,6 +595,8 @@ def register_routes(app, limiter):
             domaine = sanitize_string(data.get('domaine', ''))
             theme = sanitize_string(data.get('theme', ''))
             code_utilisateur = data.get('code', '')
+            exercice_id = data.get('exercice_id', '')
+            tentative = data.get('tentative', 1)
             
             # Validation du domaine
             if not validate_domain(domaine):
@@ -600,88 +605,81 @@ def register_routes(app, limiter):
                     'error': 'Domaine invalide'
                 }), 400
             
-            # Vérification du code avec CAS DE TEST FIXES (sécurisé)
-            from modules.core.fonctions import executer_code_securise
+            # Vérification avec IA
+            from modules.core.fonctions import verifier_reponse, analyser_verdict
             
             try:
-                # Définir des cas de test pour ce thème
-                # Ces valeurs sont FIXES, pas d'input() interactif
-                cas_de_test = [
-                    {
-                        "inputs": ["30", "175"], 
-                        "description": "Test 1: âge=30, taille=175",
-                        "expected_keywords": ["30", "175", "int", "float"]
-                    },
-                    {
-                        "inputs": ["25", "168.5"], 
-                        "description": "Test 2: âge=25, taille=168.5",
-                        "expected_keywords": ["25", "168.5", "int", "float"]
-                    },
-                    {
-                        "inputs": ["50", "182.3"], 
-                        "description": "Test 3: âge=50, taille=182.3",
-                        "expected_keywords": ["50", "182.3", "int", "float"]
-                    }
-                ]
+                # Récupérer l'exercice pour le contexte
+                exercice_enonce = data.get('exercice_enonce', '')
                 
-                tests_reussis = 0
-                tests_results = []
+                # 1. Vérifier via IA
+                correction_ia = verifier_reponse(
+                    exercice=exercice_enonce,
+                    reponse_utilisateur=code_utilisateur,
+                    domaine=domaine
+                )
                 
-                for test in cas_de_test:
-                    # Exécuter le code avec les inputs prédéfinis
-                    resultat = executer_code_securise(code_utilisateur, test_inputs=test["inputs"])
-                    
-                    if resultat.get('success'):
-                        output = resultat.get('output', '').strip()
+                # 2. Analyser le verdict
+                is_correct = analyser_verdict(correction_ia)
+                
+                # 3. Gérer les tentatives
+                tentatives_restantes = 3 - tentative
+                peut_voir_correction = tentative >= 3
+                
+                # 4. Préparer le message
+                if is_correct:
+                    message = "✅ " + correction_ia
+                    # Mise à jour XP et progression
+                    try:
+                        from modules.core.xp_systeme import calculer_xp
+                        from modules.core.progression import charger_progression, mettre_a_jour_progression
                         
-                        # Vérifier que la sortie contient tous les éléments attendus
-                        all_keywords_present = all(
-                            keyword in output for keyword in test.get("expected_keywords", [])
-                        )
+                        difficulte = data.get('difficulte', 1)
+                        xp_gagne = calculer_xp(difficulte, True)
                         
-                        if all_keywords_present and len(output) > 0:
-                            tests_reussis += 1
-                            tests_results.append({
-                                'passed': True,
-                                'description': test["description"],
-                                'output': output
-                            })
-                        else:
-                            tests_results.append({
-                                'passed': False,
-                                'description': test["description"],
-                                'output': output,
-                                'error': 'La sortie ne correspond pas au format attendu'
-                            })
-                    else:
-                        tests_results.append({
-                            'passed': False,
-                            'description': test["description"],
-                            'error': resultat.get('error', 'Erreur inconnue')
-                        })
+                        progression = charger_progression(username)
+                        progression['xp'] = progression.get('xp', 0) + xp_gagne
+                        progression['exercices_reussis'] = progression.get('exercices_reussis', 0) + 1
+                        mettre_a_jour_progression(username, progression)
+                    except Exception as prog_error:
+                        print(f"Erreur progression: {prog_error}")
+                else:
+                    message = "❌ " + correction_ia
+                    if tentatives_restantes > 0:
+                        message += f"\n\n💡 Il vous reste {tentatives_restantes} tentative(s)"
+                    elif peut_voir_correction:
+                        message += "\n\n📖 Voulez-vous voir la correction ?"
                 
-                tous_reussis = tests_reussis == len(cas_de_test)
+                # 5. Log de sécurité
+                log_security_event('exercice_verification', {
+                    'username': username,
+                    'domaine': domaine,
+                    'theme': theme,
+                    'correct': is_correct,
+                    'tentative': tentative
+                })
                 
                 return jsonify({
                     'success': True,
                     'data': {
-                        'correct': tous_reussis,
-                        'message': f'✅ Tous les tests réussis ({tests_reussis}/{len(cas_de_test)}) !' if tous_reussis else f'⚠️ Tests réussis: {tests_reussis}/{len(cas_de_test)}',
-                        'tests_results': tests_results,
-                        'tests_passed': tests_reussis,
-                        'tests_total': len(cas_de_test)
+                        'correct': is_correct,
+                        'message': message,
+                        'correction_complete': correction_ia,
+                        'tentatives_restantes': tentatives_restantes,
+                        'peut_voir_correction': peut_voir_correction,
+                        'tentative_actuelle': tentative
                     }
                 }), 200
                 
             except Exception as exec_error:
+                log_error(f"Erreur vérification: {str(exec_error)}\n{traceback.format_exc()}")
                 return jsonify({
                     'success': True,
                     'data': {
                         'correct': False,
-                        'message': f'❌ Erreur d\'exécution: {str(exec_error)}',
-                        'tests_results': [],
-                        'tests_passed': 0,
-                        'tests_total': 0
+                        'message': f'❌ Erreur lors de la vérification: {str(exec_error)}',
+                        'tentatives_restantes': 3 - tentative,
+                        'peut_voir_correction': False
                     }
                 }), 200
                 
